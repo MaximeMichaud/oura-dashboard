@@ -1,5 +1,5 @@
-import time
 import logging
+import time
 
 from sqlalchemy import create_engine, text
 from sqlalchemy.engine import Engine

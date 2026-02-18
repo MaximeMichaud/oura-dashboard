@@ -1,13 +1,13 @@
-from .sleep import SLEEP_ENDPOINT, DAILY_SLEEP_ENDPOINT
-from .readiness import DAILY_READINESS_ENDPOINT
 from .activity import DAILY_ACTIVITY_ENDPOINT
+from .cardiovascular import DAILY_CARDIOVASCULAR_AGE_ENDPOINT
+from .readiness import DAILY_READINESS_ENDPOINT
+from .resilience import DAILY_RESILIENCE_ENDPOINT
+from .sleep import DAILY_SLEEP_ENDPOINT, SLEEP_ENDPOINT
+from .sleep_time import SLEEP_TIME_ENDPOINT
 from .spo2 import DAILY_SPO2_ENDPOINT
 from .stress import DAILY_STRESS_ENDPOINT
-from .resilience import DAILY_RESILIENCE_ENDPOINT
-from .cardiovascular import DAILY_CARDIOVASCULAR_AGE_ENDPOINT
 from .vo2_max import DAILY_VO2_MAX_ENDPOINT
 from .workout import WORKOUT_ENDPOINT
-from .sleep_time import SLEEP_TIME_ENDPOINT
 
 ALL_ENDPOINTS = [
     SLEEP_ENDPOINT,

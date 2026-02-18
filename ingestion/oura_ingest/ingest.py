@@ -1,5 +1,5 @@
-import re
 import logging
+import re
 from datetime import date, timedelta
 
 from sqlalchemy import text
