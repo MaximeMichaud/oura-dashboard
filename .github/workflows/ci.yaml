@@ -1,0 +1,161 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Lint Python
+        uses: astral-sh/ruff-action@v3
+        with:
+          args: check ingestion/
+
+      - name: Check formatting
+        uses: astral-sh/ruff-action@v3
+        with:
+          args: format --check ingestion/
+
+      - name: Lint Dockerfile
+        uses: hadolint/hadolint-action@v3.3.0
+        with:
+          dockerfile: ingestion/Dockerfile
+
+      - name: Validate dashboard JSONs
+        run: |
+          python -c "
+          import json, sys, pathlib
+          errors = []
+          for f in sorted(pathlib.Path('grafana/provisioning/dashboards-json').glob('*.json')):
+              try:
+                  d = json.loads(f.read_text())
+                  for field in ('uid', 'title', 'panels'):
+                      if field not in d:
+                          errors.append(f'{f.name}: missing {field}')
+                  for p in d.get('panels', []):
+                      ds = p.get('datasource', {})
+                      if isinstance(ds, dict) and ds.get('uid') and ds['uid'] != 'oura-pg':
+                          errors.append(f'{f.name}: panel {p.get(\"id\")} bad datasource {ds[\"uid\"]}')
+              except json.JSONDecodeError as e:
+                  errors.append(f'{f.name}: invalid JSON - {e}')
+          if errors:
+              print('\n'.join(errors))
+              sys.exit(1)
+          print('All dashboard JSONs valid')
+          "
+
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.14"
+          allow-prereleases: true
+
+      - name: Install dependencies
+        run: |
+          pip install -r ingestion/requirements.txt
+          pip install pytest
+
+      - name: Run tests
+        run: pytest tests/ -v
+
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Validate compose file
+        run: docker compose config --quiet
+
+      - name: Build images
+        run: docker compose build
+
+  integration:
+    name: Integration
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: oura
+          POSTGRES_USER: oura
+          POSTGRES_PASSWORD: oura
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U oura"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install PostgreSQL client
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq postgresql-client > /dev/null
+
+      - name: Apply schema
+        run: PGPASSWORD=oura psql -h localhost -U oura -d oura -f postgres/init.sql
+
+      - name: Verify tables
+        run: |
+          TABLE_COUNT=$(PGPASSWORD=oura psql -h localhost -U oura -d oura -t -c \
+            "SELECT count(*) FROM information_schema.tables WHERE table_schema = 'public' AND table_type = 'BASE TABLE'" | xargs)
+          echo "Tables found: $TABLE_COUNT"
+          [ "$TABLE_COUNT" -eq 12 ] || { echo "Expected 12 tables, got $TABLE_COUNT"; exit 1; }
+
+      - name: Verify indexes
+        run: |
+          INDEX_COUNT=$(PGPASSWORD=oura psql -h localhost -U oura -d oura -t -c \
+            "SELECT count(*) FROM pg_indexes WHERE schemaname = 'public'" | xargs)
+          echo "Indexes found: $INDEX_COUNT"
+          [ "$INDEX_COUNT" -ge 16 ] || { echo "Expected at least 16 indexes, got $INDEX_COUNT"; exit 1; }
+
+      - name: Verify idempotency
+        run: PGPASSWORD=oura psql -h localhost -U oura -d oura -f postgres/init.sql
+
+      - name: Start Grafana
+        run: |
+          docker run -d --name grafana \
+            --network host \
+            -v ${{ github.workspace }}/grafana/grafana.ini:/etc/grafana/grafana.ini:ro \
+            -v ${{ github.workspace }}/grafana/provisioning/datasources:/etc/grafana/provisioning/datasources:ro \
+            -v ${{ github.workspace }}/grafana/provisioning/dashboards:/etc/grafana/provisioning/dashboards:ro \
+            -v ${{ github.workspace }}/grafana/provisioning/dashboards-json:/var/lib/grafana/dashboards:ro \
+            -e GF_SECURITY_ADMIN_USER=admin \
+            -e GF_SECURITY_ADMIN_PASSWORD=admin \
+            grafana/grafana:12.3.3
+
+      - name: Wait for Grafana
+        run: |
+          for i in $(seq 1 30); do
+            if curl -sf http://localhost:3000/api/health > /dev/null 2>&1; then
+              echo "Grafana ready"
+              break
+            fi
+            sleep 2
+          done
+
+      - name: Verify dashboards loaded
+        run: |
+          DASH_COUNT=$(curl -sf -u admin:admin http://localhost:3000/api/search?type=dash-db | python3 -c "import sys,json; print(len(json.load(sys.stdin)))")
+          echo "Dashboards loaded: $DASH_COUNT"
+          [ "$DASH_COUNT" -ge 5 ] || { echo "Expected at least 5 dashboards, got $DASH_COUNT"; exit 1; }

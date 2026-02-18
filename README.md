@@ -1,5 +1,7 @@
 # Oura Dashboard
 
+[![CI](https://github.com/MaximeMichaud/oura-dashboard/workflows/CI/badge.svg)](https://github.com/MaximeMichaud/oura-dashboard/actions?query=workflow%3ACI)
+
 Unified dashboard for your [Oura Ring](https://ouraring.com) data - sleep, readiness, activity, stress, and more.
 
 Built with **[Oura API v2](https://cloud.ouraring.com/v2/docs)**, **PostgreSQL 16**, **Grafana 12**, and a Python ingestion service that syncs automatically every 30 minutes.
