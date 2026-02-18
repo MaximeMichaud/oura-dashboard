@@ -1,0 +1,1884 @@
+{
+  "uid": "oura-sleep",
+  "title": "Oura - Sleep",
+  "tags": [
+    "oura"
+  ],
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 1,
+  "editable": true,
+  "time": {
+    "from": "now-6M",
+    "to": "now"
+  },
+  "timepicker": {},
+  "refresh": "",
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "panels": [
+    {
+      "id": 1,
+      "title": "Total Sleep",
+      "type": "stat",
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 0,
+        "y": 0
+      },
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "oura-pg"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "oura-pg"
+          },
+          "rawSql": "SELECT total_sleep/3600.0 as \"Total\" FROM sleep WHERE type='long_sleep' AND day = '$night' ORDER BY total_sleep DESC LIMIT 1",
+          "format": "table",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "h",
+          "color": {
+            "fixedColor": "#1F77B4",
+            "mode": "fixed"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "#1F77B4",
+                "value": null
+              }
+            ]
+          },
+          "mappings": []
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "orientation": "auto",
+        "textMode": "auto",
+        "wideLayout": true,
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto"
+      }
+    },
+    {
+      "id": 2,
+      "title": "Efficiency",
+      "type": "stat",
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 4,
+        "y": 0
+      },
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "oura-pg"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "oura-pg"
+          },
+          "rawSql": "SELECT efficiency FROM sleep WHERE type='long_sleep' AND day = '$night' ORDER BY total_sleep DESC LIMIT 1",
+          "format": "table",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "#F2495C",
+                "value": null
+              },
+              {
+                "color": "#FF9830",
+                "value": 75
+              },
+              {
+                "color": "#73BF69",
+                "value": 90
+              }
+            ]
+          },
+          "mappings": []
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "orientation": "auto",
+        "textMode": "auto",
+        "wideLayout": true,
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto"
+      }
+    },
+    {
+      "id": 3,
+      "title": "Avg HRV",
+      "type": "stat",
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 8,
+        "y": 0
+      },
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "oura-pg"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "oura-pg"
+          },
+          "rawSql": "SELECT average_hrv FROM sleep WHERE type='long_sleep' AND day = '$night' ORDER BY total_sleep DESC LIMIT 1",
+          "format": "table",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ms",
+          "color": {
+            "fixedColor": "#9467BD",
+            "mode": "fixed"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "#9467BD",
+                "value": null
+              }
+            ]
+          },
+          "mappings": []
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "orientation": "auto",
+        "textMode": "auto",
+        "wideLayout": true,
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto"
+      }
+    },
+    {
+      "id": 4,
+      "title": "Lowest HR",
+      "type": "stat",
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 12,
+        "y": 0
+      },
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "oura-pg"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "oura-pg"
+          },
+          "rawSql": "SELECT lowest_heart_rate FROM sleep WHERE type='long_sleep' AND day = '$night' ORDER BY total_sleep DESC LIMIT 1",
+          "format": "table",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bpm",
+          "color": {
+            "fixedColor": "#D62728",
+            "mode": "fixed"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "#D62728",
+                "value": null
+              }
+            ]
+          },
+          "mappings": []
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "orientation": "auto",
+        "textMode": "auto",
+        "wideLayout": true,
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto"
+      }
+    },
+    {
+      "id": 5,
+      "title": "Latency",
+      "type": "stat",
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 16,
+        "y": 0
+      },
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "oura-pg"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "oura-pg"
+          },
+          "rawSql": "SELECT latency/60.0 as \"Latency\" FROM sleep WHERE type='long_sleep' AND day = '$night' ORDER BY total_sleep DESC LIMIT 1",
+          "format": "table",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "min",
+          "color": {
+            "fixedColor": "#7EB2DD",
+            "mode": "fixed"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "#7EB2DD",
+                "value": null
+              }
+            ]
+          },
+          "mappings": []
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "orientation": "auto",
+        "textMode": "auto",
+        "wideLayout": true,
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto"
+      }
+    },
+    {
+      "id": 6,
+      "title": "Avg Breathing (br/min)",
+      "type": "stat",
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 20,
+        "y": 0
+      },
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "oura-pg"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "oura-pg"
+          },
+          "rawSql": "SELECT average_breath FROM sleep WHERE type='long_sleep' AND day = '$night' ORDER BY total_sleep DESC LIMIT 1",
+          "format": "table",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "color": {
+            "fixedColor": "#17BECF",
+            "mode": "fixed"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "#17BECF",
+                "value": null
+              }
+            ]
+          },
+          "mappings": []
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "orientation": "auto",
+        "textMode": "auto",
+        "wideLayout": true,
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto"
+      }
+    },
+    {
+      "id": 7,
+      "title": "Sleep Phases",
+      "type": "piechart",
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 0,
+        "y": 4
+      },
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "oura-pg"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "oura-pg"
+          },
+          "rawSql": "SELECT deep_sleep/60.0 as \"Deep\", light_sleep/60.0 as \"Light\", rem_sleep/60.0 as \"REM\", awake_time/60.0 as \"Awake\" FROM sleep WHERE type='long_sleep' AND day = '$night' ORDER BY total_sleep DESC LIMIT 1",
+          "format": "table",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "min",
+          "color": {
+            "mode": "fixed"
+          },
+          "mappings": []
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Deep"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "#1F77B4",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Light"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "#7EB2DD",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "REM"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "#9467BD",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Awake"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "#D62728",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "pieType": "donut",
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        },
+        "legend": {
+          "displayMode": "list",
+          "placement": "right",
+          "values": [
+            "value",
+            "percent"
+          ]
+        },
+        "displayLabels": [
+          "percent"
+        ]
+      }
+    },
+    {
+      "id": 8,
+      "title": "Sleep Phases Stacked %",
+      "type": "timeseries",
+      "gridPos": {
+        "h": 8,
+        "w": 16,
+        "x": 8,
+        "y": 4
+      },
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "oura-pg"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "oura-pg"
+          },
+          "rawSql": "SELECT day as time, deep_sleep/3600.0 as \"Deep\" FROM (SELECT DISTINCT ON (day) day, deep_sleep FROM sleep WHERE type='long_sleep' AND $__timeFilter(day) ORDER BY day, total_sleep DESC) sub ORDER BY day",
+          "format": "time_series",
+          "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "oura-pg"
+          },
+          "rawSql": "SELECT day as time, light_sleep/3600.0 as \"Light\" FROM (SELECT DISTINCT ON (day) day, light_sleep FROM sleep WHERE type='long_sleep' AND $__timeFilter(day) ORDER BY day, total_sleep DESC) sub ORDER BY day",
+          "format": "time_series",
+          "refId": "B"
+        },
+        {
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "oura-pg"
+          },
+          "rawSql": "SELECT day as time, rem_sleep/3600.0 as \"REM\" FROM (SELECT DISTINCT ON (day) day, rem_sleep FROM sleep WHERE type='long_sleep' AND $__timeFilter(day) ORDER BY day, total_sleep DESC) sub ORDER BY day",
+          "format": "time_series",
+          "refId": "C"
+        },
+        {
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "oura-pg"
+          },
+          "rawSql": "SELECT day as time, awake_time/3600.0 as \"Awake\" FROM (SELECT DISTINCT ON (day) day, awake_time FROM sleep WHERE type='long_sleep' AND $__timeFilter(day) ORDER BY day, total_sleep DESC) sub ORDER BY day",
+          "format": "time_series",
+          "refId": "D"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "h",
+          "color": {
+            "mode": "fixed"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "line",
+            "fillOpacity": 100,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "smooth",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "percent"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "#73BF69",
+                "value": null
+              }
+            ]
+          },
+          "mappings": []
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Deep"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "#1F77B4",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Light"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "#7EB2DD",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "REM"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "#9467BD",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Awake"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "#D62728",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        },
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "calcs": []
+        }
+      }
+    },
+    {
+      "id": 9,
+      "title": "Sleep Phase Timeline ($night)",
+      "type": "state-timeline",
+      "timeFrom": "2d",
+      "timeShift": "$night_shift",
+      "hideTimeOverride": true,
+      "gridPos": {
+        "h": 8,
+        "w": 24,
+        "x": 0,
+        "y": 12
+      },
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "oura-pg"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "oura-pg"
+          },
+          "rawSql": "WITH sr AS (\n  SELECT * FROM sleep WHERE type='long_sleep' AND day = '$night' ORDER BY total_sleep DESC LIMIT 1\n), bounds AS (\n  SELECT min(i) as lo, max(i) as hi\n  FROM sr, generate_series(0, length(sleep_phase_5_min)-1) as i\n  WHERE substr(sleep_phase_5_min, i+1, 1) IN ('1','2','3')\n)\n(\n  SELECT\n    sr.bedtime_start + (i * interval '5 minutes') as time,\n    CASE substr(sr.sleep_phase_5_min, i+1, 1)\n      WHEN '1' THEN 'Deep'\n      WHEN '2' THEN 'Light'\n      WHEN '3' THEN 'REM'\n      WHEN '4' THEN 'Awake'\n      ELSE 'Unknown'\n    END as \"Phase\"\n  FROM sr,\n       generate_series(0, length(sr.sleep_phase_5_min)-1) as i,\n       bounds b\n  WHERE i >= b.lo AND i <= b.hi\n)\nUNION ALL\n(\n  SELECT\n    sr.bedtime_start + ((b.hi + 1) * interval '5 minutes') as time,\n    NULL as \"Phase\"\n  FROM sr, bounds b\n)\nORDER BY time",
+          "format": "time_series",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "fixed"
+          },
+          "custom": {
+            "fillOpacity": 80,
+            "lineWidth": 0,
+            "spanNulls": false
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "#73BF69",
+                "value": null
+              }
+            ]
+          },
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "Deep": {
+                  "color": "#1F77B4",
+                  "index": 0,
+                  "text": "Deep"
+                },
+                "Light": {
+                  "color": "#7EB2DD",
+                  "index": 1,
+                  "text": "Light"
+                },
+                "REM": {
+                  "color": "#9467BD",
+                  "index": 2,
+                  "text": "REM"
+                },
+                "Awake": {
+                  "color": "#D62728",
+                  "index": 3,
+                  "text": "Awake"
+                }
+              }
+            }
+          ]
+        },
+        "overrides": []
+      },
+      "options": {
+        "showValue": "never",
+        "mergeValues": true,
+        "alignValue": "center",
+        "rowHeight": 0.9,
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        },
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      }
+    },
+    {
+      "id": 10,
+      "title": "Heart Rate During Sleep ($night)",
+      "type": "trend",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 20
+      },
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "oura-pg"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "oura-pg"
+          },
+          "rawSql": "WITH sr AS (\n  SELECT * FROM sleep WHERE type='long_sleep' AND day = '$night' ORDER BY total_sleep DESC LIMIT 1\n), bounds AS (\n  SELECT min(i) as lo, max(i) as hi\n  FROM sr, generate_series(0, length(sleep_phase_5_min)-1) as i\n  WHERE substr(sleep_phase_5_min, i+1, 1) IN ('1','2','3')\n)\nSELECT\n  (extract(epoch from sr.bedtime_start + ((item.ordinality - 1) * interval '5 minutes')) * 1000)::bigint as \"Time\",\n  (item.value)::numeric as \"Heart Rate\"\nFROM sr,\n     jsonb_array_elements_text(sr.heart_rate->'items') WITH ORDINALITY as item,\n     bounds b\nWHERE item.ordinality - 1 >= b.lo AND item.ordinality - 1 <= b.hi\n  AND item.value IS NOT NULL AND item.value <> 'null' AND item.value <> ''\nORDER BY 1",
+          "format": "table",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bpm",
+          "color": {
+            "fixedColor": "#D62728",
+            "mode": "fixed"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "line",
+            "fillOpacity": 15,
+            "gradientMode": "scheme",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "smooth",
+            "lineWidth": 2,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "#D62728",
+                "value": null
+              }
+            ]
+          },
+          "mappings": []
+        },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "Time" },
+            "properties": [{ "id": "unit", "value": "dateTimeAsIso" }]
+          }
+        ]
+      },
+      "options": {
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        },
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "calcs": [
+            "min",
+            "mean",
+            "max"
+          ]
+        }
+      }
+    },
+    {
+      "id": 11,
+      "title": "HRV During Sleep ($night)",
+      "type": "trend",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 20
+      },
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "oura-pg"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "oura-pg"
+          },
+          "rawSql": "WITH sr AS (\n  SELECT * FROM sleep WHERE type='long_sleep' AND day = '$night' ORDER BY total_sleep DESC LIMIT 1\n), bounds AS (\n  SELECT min(i) as lo, max(i) as hi\n  FROM sr, generate_series(0, length(sleep_phase_5_min)-1) as i\n  WHERE substr(sleep_phase_5_min, i+1, 1) IN ('1','2','3')\n)\nSELECT\n  (extract(epoch from sr.bedtime_start + ((item.ordinality - 1) * interval '5 minutes')) * 1000)::bigint as \"Time\",\n  (item.value)::numeric as \"HRV\"\nFROM sr,\n     jsonb_array_elements_text(sr.hrv->'items') WITH ORDINALITY as item,\n     bounds b\nWHERE item.ordinality - 1 >= b.lo AND item.ordinality - 1 <= b.hi\n  AND item.value IS NOT NULL AND item.value <> 'null' AND item.value <> ''\nORDER BY 1",
+          "format": "table",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ms",
+          "color": {
+            "fixedColor": "#9467BD",
+            "mode": "fixed"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "line",
+            "fillOpacity": 15,
+            "gradientMode": "scheme",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "smooth",
+            "lineWidth": 2,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "#9467BD",
+                "value": null
+              }
+            ]
+          },
+          "mappings": []
+        },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "Time" },
+            "properties": [{ "id": "unit", "value": "dateTimeAsIso" }]
+          }
+        ]
+      },
+      "options": {
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        },
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "calcs": [
+            "min",
+            "mean",
+            "max"
+          ]
+        }
+      }
+    },
+    {
+      "id": 12,
+      "title": "HRV Trend",
+      "type": "timeseries",
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 0,
+        "y": 28
+      },
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "oura-pg"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "oura-pg"
+          },
+          "rawSql": "SELECT day as time, average_hrv as \"HRV\" FROM (SELECT DISTINCT ON (day) day, average_hrv FROM sleep WHERE type='long_sleep' AND $__timeFilter(day) ORDER BY day, total_sleep DESC) sub ORDER BY day",
+          "format": "time_series",
+          "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "oura-pg"
+          },
+          "rawSql": "SELECT day as time, avg(average_hrv) OVER (ORDER BY day ROWS BETWEEN 6 PRECEDING AND CURRENT ROW) as \"7d Avg\" FROM (SELECT DISTINCT ON (day) day, average_hrv FROM sleep WHERE type='long_sleep' AND $__timeFilter(day) ORDER BY day, total_sleep DESC) sub ORDER BY day",
+          "format": "time_series",
+          "refId": "B"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ms",
+          "color": {
+            "mode": "fixed"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "smooth",
+            "lineWidth": 2,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "#9467BD",
+                "value": null
+              }
+            ]
+          },
+          "mappings": []
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "HRV"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "#9467BD",
+                  "mode": "fixed"
+                }
+              },
+              {
+                "id": "custom.lineWidth",
+                "value": 1
+              },
+              {
+                "id": "custom.fillOpacity",
+                "value": 10
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "7d Avg"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "#E377C2",
+                  "mode": "fixed"
+                }
+              },
+              {
+                "id": "custom.lineWidth",
+                "value": 3
+              },
+              {
+                "id": "custom.showPoints",
+                "value": "never"
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        },
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "calcs": []
+        }
+      }
+    },
+    {
+      "id": 13,
+      "title": "Resting HR Trend",
+      "type": "timeseries",
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 8,
+        "y": 28
+      },
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "oura-pg"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "oura-pg"
+          },
+          "rawSql": "SELECT day as time, lowest_heart_rate as \"Lowest HR\" FROM (SELECT DISTINCT ON (day) day, lowest_heart_rate FROM sleep WHERE type='long_sleep' AND $__timeFilter(day) ORDER BY day, total_sleep DESC) sub ORDER BY day",
+          "format": "time_series",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bpm",
+          "color": {
+            "fixedColor": "#D62728",
+            "mode": "fixed"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "smooth",
+            "lineWidth": 2,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "#D62728",
+                "value": null
+              }
+            ]
+          },
+          "mappings": []
+        },
+        "overrides": []
+      },
+      "options": {
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        },
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "calcs": [
+            "min",
+            "mean",
+            "max"
+          ]
+        }
+      }
+    },
+    {
+      "id": 14,
+      "title": "Efficiency Trend",
+      "type": "timeseries",
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 16,
+        "y": 28
+      },
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "oura-pg"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "oura-pg"
+          },
+          "rawSql": "SELECT day as time, efficiency as \"Efficiency\" FROM (SELECT DISTINCT ON (day) day, efficiency FROM sleep WHERE type='long_sleep' AND $__timeFilter(day) ORDER BY day, total_sleep DESC) sub ORDER BY day",
+          "format": "time_series",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "color": {
+            "fixedColor": "#2CA02C",
+            "mode": "fixed"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "smooth",
+            "lineWidth": 2,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "area"
+            }
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "rgba(214, 39, 40, 0.1)",
+                "value": null
+              },
+              {
+                "color": "rgba(255, 152, 48, 0.1)",
+                "value": 75
+              },
+              {
+                "color": "rgba(115, 191, 105, 0.1)",
+                "value": 90
+              }
+            ]
+          },
+          "min": 50,
+          "max": 100,
+          "mappings": []
+        },
+        "overrides": []
+      },
+      "options": {
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        },
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "calcs": [
+            "min",
+            "mean",
+            "max"
+          ]
+        }
+      }
+    },
+    {
+      "id": 15,
+      "title": "Sleep Contributors",
+      "type": "table",
+      "gridPos": {
+        "h": 6,
+        "w": 24,
+        "x": 0,
+        "y": 36
+      },
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "oura-pg"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "oura-pg"
+          },
+          "rawSql": "SELECT day::text as \"Date\", contributors_deep_sleep as \"Deep Sleep\", contributors_efficiency as \"Efficiency\", contributors_latency as \"Latency\", contributors_rem_sleep as \"REM Sleep\", contributors_restfulness as \"Restfulness\", contributors_timing as \"Timing\", contributors_total_sleep as \"Total Sleep\" FROM daily_sleep WHERE $__timeFilter(day) ORDER BY day DESC",
+          "format": "table",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "#F2495C",
+                "value": null
+              },
+              {
+                "color": "#FF9830",
+                "value": 60
+              },
+              {
+                "color": "#73BF69",
+                "value": 80
+              }
+            ]
+          },
+          "custom": {
+            "align": "center",
+            "cellOptions": {
+              "type": "color-background",
+              "mode": "gradient"
+            },
+            "inspect": false,
+            "filterable": false
+          },
+          "mappings": []
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Date"
+            },
+            "properties": [
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "auto"
+                }
+              },
+              {
+                "id": "custom.width",
+                "value": 120
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "showHeader": true,
+        "sortBy": [
+          {
+            "displayName": "Date",
+            "desc": true
+          }
+        ],
+        "cellHeight": "sm",
+        "footer": {
+          "show": false,
+          "reducer": [
+            "sum"
+          ],
+          "countRows": false,
+          "fields": ""
+        },
+        "frameIndex": 0
+      }
+    },
+    {
+      "id": 16,
+      "title": "Sleep Latency Trend",
+      "type": "timeseries",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 42
+      },
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "oura-pg"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "oura-pg"
+          },
+          "rawSql": "SELECT day as time, latency/60.0 as \"Latency (min)\" FROM (SELECT DISTINCT ON (day) day, latency FROM sleep WHERE type='long_sleep' AND $__timeFilter(day) ORDER BY day, total_sleep DESC) sub ORDER BY day",
+          "format": "time_series",
+          "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "oura-pg"
+          },
+          "rawSql": "SELECT day as time, avg(latency/60.0) OVER (ORDER BY day ROWS BETWEEN 6 PRECEDING AND CURRENT ROW) as \"7d Avg\" FROM (SELECT DISTINCT ON (day) day, latency FROM sleep WHERE type='long_sleep' AND $__timeFilter(day) ORDER BY day, total_sleep DESC) sub ORDER BY day",
+          "format": "time_series",
+          "refId": "B"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "min",
+          "color": {
+            "mode": "fixed"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "lineInterpolation": "smooth",
+            "lineWidth": 2,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "#7EB2DD",
+                "value": null
+              }
+            ]
+          },
+          "mappings": []
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Latency (min)"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "#7EB2DD",
+                  "mode": "fixed"
+                }
+              },
+              {
+                "id": "custom.lineWidth",
+                "value": 1
+              },
+              {
+                "id": "custom.fillOpacity",
+                "value": 10
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "7d Avg"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "#1F77B4",
+                  "mode": "fixed"
+                }
+              },
+              {
+                "id": "custom.lineWidth",
+                "value": 3
+              },
+              {
+                "id": "custom.showPoints",
+                "value": "never"
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        },
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "calcs": [
+            "mean"
+          ]
+        }
+      }
+    },
+    {
+      "id": 17,
+      "title": "Breathing Rate Trend",
+      "type": "timeseries",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 42
+      },
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "oura-pg"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "oura-pg"
+          },
+          "rawSql": "SELECT day as time, average_breath as \"Breaths/min\" FROM (SELECT DISTINCT ON (day) day, average_breath FROM sleep WHERE type='long_sleep' AND $__timeFilter(day) ORDER BY day, total_sleep DESC) sub ORDER BY day",
+          "format": "time_series",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "color": {
+            "fixedColor": "#17BECF",
+            "mode": "fixed"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "drawStyle": "line",
+            "fillOpacity": 15,
+            "gradientMode": "scheme",
+            "lineInterpolation": "smooth",
+            "lineWidth": 2,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "#17BECF",
+                "value": null
+              }
+            ]
+          },
+          "mappings": []
+        },
+        "overrides": []
+      },
+      "options": {
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        },
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "calcs": [
+            "mean",
+            "min",
+            "max"
+          ]
+        }
+      }
+    },
+    {
+      "id": 18,
+      "title": "Optimal Bedtime",
+      "type": "stat",
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 0,
+        "y": 50
+      },
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "oura-pg"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "oura-pg"
+          },
+          "rawSql": "SELECT CASE WHEN optimal_bedtime_start IS NOT NULL THEN to_char((timestamp '2000-01-02 00:00:00' + (optimal_bedtime_start * interval '1 second'))::time, 'HH24:MI') || ' - ' || to_char((timestamp '2000-01-02 00:00:00' + (optimal_bedtime_end * interval '1 second'))::time, 'HH24:MI') ELSE initcap(replace(recommendation, '_', ' ')) END as \"Bedtime\" FROM sleep_time ORDER BY day DESC LIMIT 1",
+          "format": "table",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "fixedColor": "#1F77B4",
+            "mode": "fixed"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [{ "color": "#1F77B4", "value": null }]
+          },
+          "noValue": "N/A"
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "/.*/", "values": false },
+        "orientation": "auto",
+        "textMode": "value",
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto"
+      }
+    },
+    {
+      "id": 19,
+      "title": "Bedtime Recommendation",
+      "type": "stat",
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 6,
+        "y": 50
+      },
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "oura-pg"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "oura-pg"
+          },
+          "rawSql": "SELECT initcap(replace(recommendation, '_', ' ')) as \"Recommendation\" FROM sleep_time ORDER BY day DESC LIMIT 1",
+          "format": "table",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "fixedColor": "#9467BD",
+            "mode": "fixed"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [{ "color": "#9467BD", "value": null }]
+          },
+          "noValue": "N/A"
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "/.*/", "values": false },
+        "orientation": "auto",
+        "textMode": "value",
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto"
+      }
+    },
+    {
+      "id": 20,
+      "title": "Nap Frequency",
+      "type": "timeseries",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 50
+      },
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "oura-pg"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "oura-pg"
+          },
+          "rawSql": "SELECT day as time, count(*) as \"Naps\" FROM sleep WHERE type IN ('late_nap', 'rest') AND $__timeFilter(day) GROUP BY day ORDER BY day",
+          "format": "time_series",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "#7EB2DD"
+          },
+          "custom": {
+            "drawStyle": "bars",
+            "lineWidth": 1,
+            "fillOpacity": 80,
+            "gradientMode": "scheme",
+            "spanNulls": false,
+            "showPoints": "never",
+            "axisBorderShow": false,
+            "scaleDistribution": { "type": "linear" },
+            "barWidthFactor": 0.8
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [{ "value": null, "color": "#7EB2DD" }]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "tooltip": { "mode": "single", "sort": "none" },
+        "legend": { "displayMode": "list", "placement": "bottom" }
+      }
+    }
+  ],
+  "templating": {
+    "list": [
+      {
+        "name": "night",
+        "label": "Night",
+        "type": "query",
+        "datasource": {
+          "type": "grafana-postgresql-datasource",
+          "uid": "oura-pg"
+        },
+        "query": "SELECT DISTINCT day::text FROM sleep WHERE type='long_sleep' AND day >= '${__from:date:YYYY-MM-DD}'::date AND day <= '${__to:date:YYYY-MM-DD}'::date ORDER BY 1 DESC",
+        "refresh": 2,
+        "sort": 0,
+        "includeAll": false,
+        "multi": false,
+        "current": {}
+      },
+      {
+        "name": "night_shift",
+        "type": "query",
+        "datasource": {
+          "type": "grafana-postgresql-datasource",
+          "uid": "oura-pg"
+        },
+        "query": "SELECT ('${__to:date:YYYY-MM-DD}'::date - '$night'::date) || 'd'",
+        "refresh": 2,
+        "sort": 0,
+        "includeAll": false,
+        "multi": false,
+        "hide": 2,
+        "current": {}
+      }
+    ]
+  },
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": {
+          "type": "grafana",
+          "uid": "-- Grafana --"
+        },
+        "enable": true,
+        "hide": true,
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "name": "Annotations & Alerts",
+        "type": "dashboard"
+      }
+    ]
+  },
+  "links": [
+    {
+      "title": "Overview",
+      "type": "link",
+      "url": "/d/oura-overview",
+      "icon": "dashboard",
+      "tooltip": "Overview"
+    },
+    {
+      "title": "Sleep",
+      "type": "link",
+      "url": "/d/oura-sleep",
+      "icon": "dashboard",
+      "tooltip": "Sleep"
+    },
+    {
+      "title": "Readiness",
+      "type": "link",
+      "url": "/d/oura-readiness",
+      "icon": "dashboard",
+      "tooltip": "Readiness"
+    },
+    {
+      "title": "Activity",
+      "type": "link",
+      "url": "/d/oura-activity",
+      "icon": "dashboard",
+      "tooltip": "Activity"
+    },
+    {
+      "title": "Body",
+      "type": "link",
+      "url": "/d/oura-body",
+      "icon": "dashboard",
+      "tooltip": "Body"
+    }
+  ],
+  "liveNow": false
+}

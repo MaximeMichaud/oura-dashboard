@@ -1,0 +1,57 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-oura}
+      POSTGRES_USER: ${POSTGRES_USER:-oura}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-oura}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-oura}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  ingestion:
+    build: ./ingestion
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      OURA_TOKEN: ${OURA_TOKEN}
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: ${POSTGRES_DB:-oura}
+      POSTGRES_USER: ${POSTGRES_USER:-oura}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-oura}
+      HISTORY_START_DATE: ${HISTORY_START_DATE:-2020-01-01}
+      SYNC_INTERVAL_MINUTES: ${SYNC_INTERVAL_MINUTES:-30}
+      OVERLAP_DAYS: ${OVERLAP_DAYS:-2}
+
+  grafana:
+    image: grafana/grafana:12.3.3
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "${GRAFANA_PORT:-3000}:3000"
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GF_ADMIN_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GF_ADMIN_PASSWORD:-admin}
+    volumes:
+      - grafana-storage:/var/lib/grafana
+      - ./grafana/grafana.ini:/etc/grafana/grafana.ini:ro
+      - ./grafana/provisioning/datasources:/etc/grafana/provisioning/datasources:ro
+      - ./grafana/provisioning/dashboards:/etc/grafana/provisioning/dashboards:ro
+      - ./grafana/provisioning/dashboards-json:/var/lib/grafana/dashboards:ro
+
+volumes:
+  pgdata:
+  grafana-storage:

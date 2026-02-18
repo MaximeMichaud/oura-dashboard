@@ -1,0 +1,44 @@
+# Environment & secrets
+.env
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+*.egg-info/
+
+# Node (validation tooling only)
+node_modules/
+package.json
+package-lock.json
+
+# Docker
+*.log
+
+# IDE / editor
+.vscode/
+.idea/
+
+# Claude local state
+.claude/
+
+# Personal data
+sleep_data.json
+
+# Working notes / analysis (not part of the project)
+ANALYSE-PROJETS.md
+.audit-progress.md
+prompt.md
+api.md
+
+# Reference repos (cloned for inspiration)
+oura-data-visualiser/
+ouradb/
+Oura-Ring-Sleep-Coach/
+
+# OS
+.DS_Store
+Thumbs.db
+CLAUDE.md

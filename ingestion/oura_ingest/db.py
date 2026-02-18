@@ -1,0 +1,23 @@
+import time
+import logging
+
+from sqlalchemy import create_engine, text
+from sqlalchemy.engine import Engine
+
+from .config import cfg
+
+log = logging.getLogger(__name__)
+
+
+def wait_for_db(retries: int = 30, delay: float = 2.0) -> Engine:
+    engine = create_engine(cfg.database_url, pool_pre_ping=True)
+    for attempt in range(1, retries + 1):
+        try:
+            with engine.connect() as conn:
+                conn.execute(text("SELECT 1"))
+            log.info("Database ready")
+            return engine
+        except Exception:
+            log.info("Waiting for database... (%d/%d)", attempt, retries)
+            time.sleep(delay)
+    raise RuntimeError("Database not available after %d retries" % retries)

@@ -1,0 +1,16 @@
+apiVersion: 1
+
+datasources:
+  - name: PostgreSQL
+    uid: oura-pg
+    type: grafana-postgresql-datasource
+    access: proxy
+    url: postgres:5432
+    database: oura
+    user: oura
+    isDefault: true
+    jsonData:
+      sslmode: disable
+      postgresVersion: 1600
+    secureJsonData:
+      password: oura

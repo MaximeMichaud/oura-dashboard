@@ -1,0 +1,628 @@
+{
+  "uid": "oura-body",
+  "title": "Oura - Body",
+  "tags": ["oura"],
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "editable": true,
+  "time": {
+    "from": "now-30d",
+    "to": "now"
+  },
+  "panels": [
+    {
+      "id": 1,
+      "title": "SpO2 Average",
+      "type": "stat",
+      "gridPos": { "x": 0, "y": 0, "w": 4, "h": 4 },
+      "datasource": { "type": "grafana-postgresql-datasource", "uid": "oura-pg" },
+      "targets": [
+        {
+          "refId": "A",
+          "rawSql": "SELECT NULLIF(spo2_percentage_average, 0) as \"SpO2 %\" FROM daily_spo2 WHERE spo2_percentage_average > 0 ORDER BY day DESC LIMIT 1",
+          "format": "table"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "value": null, "color": "#D62728" },
+              { "value": 92, "color": "#FF7F0E" },
+              { "value": 95, "color": "#2CA02C" }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "reduceOptions": {
+          "calcs": ["lastNotNull"]
+        },
+        "textMode": "auto"
+      }
+    },
+    {
+      "id": 2,
+      "title": "Breathing Disturbance",
+      "type": "stat",
+      "gridPos": { "x": 4, "y": 0, "w": 4, "h": 4 },
+      "datasource": { "type": "grafana-postgresql-datasource", "uid": "oura-pg" },
+      "targets": [
+        {
+          "refId": "A",
+          "rawSql": "SELECT breathing_disturbance_index FROM daily_spo2 ORDER BY day DESC LIMIT 1",
+          "format": "table"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "decimals": 1,
+          "unit": "suffix: events/hr",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "value": null, "color": "#2CA02C" },
+              { "value": 5, "color": "#FF9830" },
+              { "value": 15, "color": "#D62728" }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "reduceOptions": {
+          "calcs": ["lastNotNull"]
+        },
+        "textMode": "auto"
+      }
+    },
+    {
+      "id": 3,
+      "title": "SpO2 Trend",
+      "type": "timeseries",
+      "gridPos": { "x": 8, "y": 0, "w": 16, "h": 4 },
+      "datasource": { "type": "grafana-postgresql-datasource", "uid": "oura-pg" },
+      "targets": [
+        {
+          "refId": "A",
+          "rawSql": "SELECT day as time, NULLIF(spo2_percentage_average, 0) as \"SpO2 %\" FROM daily_spo2 WHERE $__timeFilter(day) ORDER BY day",
+          "format": "time_series"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "#17BECF"
+          },
+          "unit": "percent",
+          "custom": {
+            "fillOpacity": 20,
+            "gradientMode": "scheme",
+            "lineWidth": 2,
+            "pointSize": 5,
+            "showPoints": "auto",
+            "spanNulls": false
+          },
+          "min": 85,
+          "max": 100
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "single"
+        }
+      }
+    },
+    {
+      "id": 4,
+      "title": "Stress Summary",
+      "type": "stat",
+      "gridPos": { "x": 0, "y": 4, "w": 4, "h": 4 },
+      "datasource": { "type": "grafana-postgresql-datasource", "uid": "oura-pg" },
+      "targets": [
+        {
+          "refId": "A",
+          "rawSql": "SELECT CASE day_summary WHEN 'restored' THEN 1 WHEN 'normal' THEN 2 WHEN 'stressful' THEN 3 ELSE 0 END as stress_level FROM daily_stress WHERE day_summary IS NOT NULL AND day_summary <> '' ORDER BY day DESC LIMIT 1",
+          "format": "table"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "value": null, "color": "#2CA02C" },
+              { "value": 2, "color": "#FF9830" },
+              { "value": 3, "color": "#F2495C" }
+            ]
+          },
+          "mappings": [
+            {"type": "value", "options": {"1": {"text": "Restored", "color": "#2CA02C"}}},
+            {"type": "value", "options": {"2": {"text": "Normal", "color": "#FF9830"}}},
+            {"type": "value", "options": {"3": {"text": "Stressful", "color": "#F2495C"}}}
+          ]
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "reduceOptions": {
+          "calcs": ["lastNotNull"],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "value"
+      }
+    },
+    {
+      "id": 5,
+      "title": "Stress Duration",
+      "type": "stat",
+      "gridPos": { "x": 4, "y": 4, "w": 4, "h": 4 },
+      "datasource": { "type": "grafana-postgresql-datasource", "uid": "oura-pg" },
+      "targets": [
+        {
+          "refId": "A",
+          "rawSql": "SELECT stress_high/60.0 as \"Stress (min)\" FROM daily_stress ORDER BY day DESC LIMIT 1",
+          "format": "table"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "min",
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "#D62728"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "value": null, "color": "#D62728" }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "reduceOptions": {
+          "calcs": ["lastNotNull"]
+        },
+        "textMode": "auto"
+      }
+    },
+    {
+      "id": 6,
+      "title": "Stress vs Recovery",
+      "type": "bargauge",
+      "gridPos": { "x": 8, "y": 4, "w": 8, "h": 4 },
+      "datasource": { "type": "grafana-postgresql-datasource", "uid": "oura-pg" },
+      "targets": [
+        {
+          "refId": "A",
+          "rawSql": "SELECT stress_high/3600.0 as \"Stress (h)\", recovery_high/3600.0 as \"Recovery (h)\" FROM daily_stress ORDER BY day DESC LIMIT 1",
+          "format": "table"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "h",
+          "min": 0,
+          "max": 16,
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "#D62728"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "value": null, "color": "#73BF69" }
+            ]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "Stress (h)" },
+            "properties": [
+              {
+                "id": "color",
+                "value": { "mode": "fixed", "fixedColor": "#D62728" }
+              }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "Recovery (h)" },
+            "properties": [
+              {
+                "id": "color",
+                "value": { "mode": "fixed", "fixedColor": "#2CA02C" }
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "orientation": "horizontal",
+        "displayMode": "gradient",
+        "reduceOptions": {
+          "calcs": ["lastNotNull"]
+        },
+        "showUnfilled": true,
+        "minVizWidth": 8,
+        "minVizHeight": 16,
+        "namePlacement": "auto",
+        "valueMode": "color"
+      }
+    },
+    {
+      "id": 7,
+      "title": "Stress / Recovery Trend",
+      "type": "timeseries",
+      "gridPos": { "x": 16, "y": 4, "w": 8, "h": 4 },
+      "datasource": { "type": "grafana-postgresql-datasource", "uid": "oura-pg" },
+      "targets": [
+        {
+          "refId": "A",
+          "rawSql": "SELECT day as time, stress_high/3600.0 as \"Stress (h)\", recovery_high/3600.0 as \"Recovery (h)\" FROM daily_stress WHERE $__timeFilter(day) ORDER BY day",
+          "format": "time_series"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "h",
+          "custom": {
+            "fillOpacity": 40,
+            "gradientMode": "none",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "showPoints": "never",
+            "stacking": {
+              "mode": "normal",
+              "group": "A"
+            },
+            "drawStyle": "line",
+            "spanNulls": false
+          },
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "#D62728"
+          }
+        },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "Stress (h)" },
+            "properties": [
+              {
+                "id": "color",
+                "value": { "mode": "fixed", "fixedColor": "#D62728" }
+              }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "Recovery (h)" },
+            "properties": [
+              {
+                "id": "color",
+                "value": { "mode": "fixed", "fixedColor": "#2CA02C" }
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        }
+      }
+    },
+    {
+      "id": 8,
+      "title": "Resilience Level",
+      "type": "stat",
+      "gridPos": { "x": 0, "y": 8, "w": 4, "h": 4 },
+      "datasource": { "type": "grafana-postgresql-datasource", "uid": "oura-pg" },
+      "targets": [
+        {
+          "refId": "A",
+          "rawSql": "SELECT CASE level WHEN 'limited' THEN 1 WHEN 'adequate' THEN 2 WHEN 'solid' THEN 3 WHEN 'strong' THEN 4 WHEN 'exceptional' THEN 5 ELSE 0 END as resilience_level FROM daily_resilience ORDER BY day DESC LIMIT 1",
+          "format": "table"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "value": null, "color": "#F2495C" },
+              { "value": 2, "color": "#FF9830" },
+              { "value": 3, "color": "#FFBB78" },
+              { "value": 4, "color": "#73BF69" },
+              { "value": 5, "color": "#1F77B4" }
+            ]
+          },
+          "mappings": [
+            {"type": "value", "options": {"1": {"text": "Limited", "color": "#F2495C"}}},
+            {"type": "value", "options": {"2": {"text": "Adequate", "color": "#FF9830"}}},
+            {"type": "value", "options": {"3": {"text": "Solid", "color": "#FFBB78"}}},
+            {"type": "value", "options": {"4": {"text": "Strong", "color": "#73BF69"}}},
+            {"type": "value", "options": {"5": {"text": "Exceptional", "color": "#1F77B4"}}}
+          ]
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "reduceOptions": {
+          "calcs": ["lastNotNull"],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "value"
+      }
+    },
+    {
+      "id": 9,
+      "title": "Contributors",
+      "type": "bargauge",
+      "gridPos": { "x": 4, "y": 8, "w": 8, "h": 4 },
+      "datasource": { "type": "grafana-postgresql-datasource", "uid": "oura-pg" },
+      "targets": [
+        {
+          "refId": "A",
+          "rawSql": "SELECT contributors_sleep_recovery as \"Sleep Recovery\", contributors_daytime_recovery as \"Daytime Recovery\", contributors_stress as \"Stress\" FROM daily_resilience ORDER BY day DESC LIMIT 1",
+          "format": "table"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "#9467BD"
+          },
+          "min": 0,
+          "max": 100,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "value": null, "color": "#9467BD" }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "orientation": "horizontal",
+        "displayMode": "gradient",
+        "reduceOptions": {
+          "calcs": ["lastNotNull"]
+        },
+        "showUnfilled": true,
+        "minVizWidth": 8,
+        "minVizHeight": 16,
+        "namePlacement": "auto",
+        "valueMode": "color"
+      }
+    },
+    {
+      "id": 10,
+      "title": "Resilience Level Timeline",
+      "type": "state-timeline",
+      "gridPos": { "x": 12, "y": 8, "w": 12, "h": 4 },
+      "datasource": { "type": "grafana-postgresql-datasource", "uid": "oura-pg" },
+      "targets": [
+        {
+          "refId": "A",
+          "rawSql": "SELECT day as time, level as \"Resilience\" FROM daily_resilience WHERE $__timeFilter(day) ORDER BY day",
+          "format": "time_series"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "value": null, "color": "#808080" }
+            ]
+          },
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "limited": {
+                  "text": "limited",
+                  "color": "#D62728",
+                  "index": 0
+                },
+                "adequate": {
+                  "text": "adequate",
+                  "color": "#FF7F0E",
+                  "index": 1
+                },
+                "solid": {
+                  "text": "solid",
+                  "color": "#FFBB78",
+                  "index": 2
+                },
+                "strong": {
+                  "text": "strong",
+                  "color": "#2CA02C",
+                  "index": 3
+                },
+                "exceptional": {
+                  "text": "exceptional",
+                  "color": "#1F77B4",
+                  "index": 4
+                }
+              }
+            }
+          ],
+          "custom": {
+            "fillOpacity": 80,
+            "lineWidth": 0
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "showValue": "never",
+        "mergeValues": true,
+        "alignValue": "center",
+        "rowHeight": 0.9,
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "single"
+        }
+      }
+    },
+    {
+      "id": 11,
+      "title": "Cardiovascular Age",
+      "type": "gauge",
+      "gridPos": { "x": 0, "y": 12, "w": 6, "h": 6 },
+      "datasource": { "type": "grafana-postgresql-datasource", "uid": "oura-pg" },
+      "targets": [
+        {
+          "refId": "A",
+          "rawSql": "SELECT vascular_age FROM daily_cardiovascular_age ORDER BY day DESC LIMIT 1",
+          "format": "table"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "min": 15,
+          "max": 80,
+          "unit": "suffix: yrs",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "value": null, "color": "#2CA02C" },
+              { "value": 40, "color": "#FF7F0E" },
+              { "value": 55, "color": "#D62728" }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": ["lastNotNull"]
+        },
+        "showThresholdLabels": false,
+        "showThresholdMarkers": true,
+        "orientation": "auto",
+        "sizing": "auto"
+      }
+    },
+    {
+      "id": 12,
+      "title": "Cardiovascular Age Trend",
+      "type": "timeseries",
+      "gridPos": { "x": 6, "y": 12, "w": 18, "h": 6 },
+      "datasource": { "type": "grafana-postgresql-datasource", "uid": "oura-pg" },
+      "targets": [
+        {
+          "refId": "A",
+          "rawSql": "SELECT day as time, vascular_age as \"Vascular Age\" FROM daily_cardiovascular_age WHERE $__timeFilter(day) ORDER BY day",
+          "format": "time_series"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "#9467BD"
+          },
+          "custom": {
+            "fillOpacity": 20,
+            "gradientMode": "scheme",
+            "lineWidth": 2,
+            "pointSize": 5,
+            "showPoints": "auto",
+            "spanNulls": false
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "single"
+        }
+      }
+    }
+  ],
+  "templating": {
+    "list": []
+  },
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": { "type": "grafana", "uid": "-- Grafana --" },
+        "enable": true,
+        "hide": true,
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "name": "Annotations & Alerts",
+        "type": "dashboard"
+      }
+    ]
+  },
+  "links": [
+    {"title": "Overview", "type": "link", "url": "/d/oura-overview", "icon": "dashboard", "tooltip": "Overview"},
+    {"title": "Sleep", "type": "link", "url": "/d/oura-sleep", "icon": "dashboard", "tooltip": "Sleep"},
+    {"title": "Readiness", "type": "link", "url": "/d/oura-readiness", "icon": "dashboard", "tooltip": "Readiness"},
+    {"title": "Activity", "type": "link", "url": "/d/oura-activity", "icon": "dashboard", "tooltip": "Activity"},
+    {"title": "Body", "type": "link", "url": "/d/oura-body", "icon": "dashboard", "tooltip": "Body"}
+  ],
+  "graphTooltip": 1,
+  "version": 1,
+  "timepicker": {},
+  "refresh": "",
+  "fiscalYearStartMonth": 0,
+  "liveNow": false
+}
