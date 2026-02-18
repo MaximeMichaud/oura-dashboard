@@ -7,7 +7,7 @@ Built with **[Oura API v2](https://cloud.ouraring.com/v2/docs)**, **PostgreSQL 1
 ## Stack
 
 - **Oura API v2** - personal health data
-- **PostgreSQL 16** - persistent storage (9 tables, auto-initialized)
+- **PostgreSQL 16** - persistent storage (12 tables, auto-initialized)
 - **Grafana 12** - 5 pre-provisioned dashboards (no setup required)
 - **Python 3.14** - ingestion service with incremental sync and retry logic
 
@@ -62,8 +62,14 @@ All settings are in `.env`:
 | `OURA_TOKEN` | (required) | Oura personal access token |
 | `HISTORY_START_DATE` | `2020-01-01` | Start date for initial import |
 | `SYNC_INTERVAL_MINUTES` | `30` | Sync frequency |
+| `OVERLAP_DAYS` | `2` | Days of overlap for incremental sync |
 | `GRAFANA_PORT` | `3000` | Grafana port |
+| `GF_ADMIN_USER` | `admin` | Grafana admin username |
+| `GF_ADMIN_PASSWORD` | `admin` | Grafana admin password |
 | `POSTGRES_PORT` | `5432` | PostgreSQL port |
+| `POSTGRES_DB` | `oura` | PostgreSQL database name |
+| `POSTGRES_USER` | `oura` | PostgreSQL username |
+| `POSTGRES_PASSWORD` | `oura` | PostgreSQL password |
 
 ## Commands
 
