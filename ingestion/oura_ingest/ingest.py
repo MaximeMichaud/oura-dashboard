@@ -2,12 +2,19 @@ import logging
 import re
 from datetime import date, timedelta
 
+import requests
 from sqlalchemy import text
 from sqlalchemy.engine import Engine
 
 from .api_client import OuraClient
 from .config import cfg
 from .endpoints import ALL_ENDPOINTS
+
+# Raised on 401 to stop all syncing (invalid/expired token)
+
+
+class TokenExpiredError(Exception):
+    pass
 
 log = logging.getLogger(__name__)
 
@@ -94,10 +101,13 @@ def sync_endpoint(engine: Engine, client: OuraClient, ep: dict) -> int:
         try:
             rows.append(ep["transform"](rec))
         except Exception:
-            log.exception("[%s] Transform error for record: %s", ep["name"], rec.get("id", rec.get("day", "?")))
+            log.warning("[%s] Transform error for record: %s", ep["name"], rec.get("id", rec.get("day", "?")), exc_info=True)
 
     count = _upsert(engine, ep["table"], ep["pk"], rows)
-    _update_sync_log(engine, ep["name"], count)
+    if count > 0:
+        _update_sync_log(engine, ep["name"], count)
+    else:
+        log.info("[%s] No records upserted, sync_log not advanced", ep["name"])
     log.info("[%s] Upserted %d records", ep["name"], count)
     return count
 
@@ -108,6 +118,11 @@ def sync_all(engine: Engine, client: OuraClient):
     for ep in ALL_ENDPOINTS:
         try:
             total += sync_endpoint(engine, client, ep)
+        except requests.HTTPError as e:
+            if e.response is not None and e.response.status_code == 401:
+                log.critical("Oura API token is invalid or expired (401). Stopping all syncs.")
+                raise TokenExpiredError("Oura API token is invalid or expired") from e
+            log.error("[%s] Sync failed", ep["name"], exc_info=True)
         except Exception:
-            log.exception("[%s] Sync failed", ep["name"])
+            log.error("[%s] Sync failed", ep["name"], exc_info=True)
     log.info("Sync complete - %d total records", total)

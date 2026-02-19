@@ -8,7 +8,7 @@ import schedule
 from .api_client import OuraClient
 from .config import cfg
 from .db import wait_for_db
-from .ingest import sync_all
+from .ingest import TokenExpiredError, sync_all
 
 logging.basicConfig(
     level=os.environ.get("LOG_LEVEL", "INFO").upper(),
@@ -36,12 +36,24 @@ def main():
 
     # Initial sync
     log.info("Running initial sync...")
-    sync_all(engine, client)
+    try:
+        sync_all(engine, client)
+    except TokenExpiredError:
+        log.critical("Exiting due to invalid Oura token. Refresh your OURA_TOKEN and restart.")
+        return
 
     # Schedule periodic sync
     interval = cfg.SYNC_INTERVAL_MINUTES
     log.info("Scheduling sync every %d minutes", interval)
-    schedule.every(interval).minutes.do(sync_all, engine=engine, client=client)
+
+    def _safe_sync():
+        try:
+            sync_all(engine, client)
+        except TokenExpiredError:
+            log.critical("Oura token expired during scheduled sync. Stopping scheduler.")
+            _stop.set()
+
+    schedule.every(interval).minutes.do(_safe_sync)
 
     while not _stop.is_set():
         schedule.run_pending()
