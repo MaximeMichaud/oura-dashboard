@@ -1,5 +1,7 @@
 import json
 
+from ..endpoint import Endpoint, simple_endpoint
+
 
 def _transform_sleep(rec: dict) -> dict:
     hr = rec.get("heart_rate") or {}
@@ -49,18 +51,12 @@ def _transform_daily_sleep(rec: dict) -> dict:
     }
 
 
-SLEEP_ENDPOINT = {
-    "name": "sleep",
-    "api_path": "sleep",
-    "table": "sleep",
-    "pk": "id",
-    "transform": _transform_sleep,
-}
+SLEEP_ENDPOINT = Endpoint(
+    name="sleep",
+    api_path="sleep",
+    table="sleep",
+    pk="id",
+    transform=_transform_sleep,
+)
 
-DAILY_SLEEP_ENDPOINT = {
-    "name": "daily_sleep",
-    "api_path": "daily_sleep",
-    "table": "daily_sleep",
-    "pk": "day",
-    "transform": _transform_daily_sleep,
-}
+DAILY_SLEEP_ENDPOINT = simple_endpoint("daily_sleep", pk="day", transform=_transform_daily_sleep)

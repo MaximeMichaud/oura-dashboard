@@ -1,3 +1,6 @@
+from ..endpoint import simple_endpoint
+
+
 def _transform(rec: dict) -> dict:
     c = rec.get("contributors", {})
     return {
@@ -31,10 +34,4 @@ def _transform(rec: dict) -> dict:
     }
 
 
-DAILY_ACTIVITY_ENDPOINT = {
-    "name": "daily_activity",
-    "api_path": "daily_activity",
-    "table": "daily_activity",
-    "pk": "day",
-    "transform": _transform,
-}
+DAILY_ACTIVITY_ENDPOINT = simple_endpoint("daily_activity", pk="day", transform=_transform)

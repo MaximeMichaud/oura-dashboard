@@ -1,3 +1,6 @@
+from ..endpoint import simple_endpoint
+
+
 def _transform(rec: dict) -> dict:
     return {
         "id": rec["id"],
@@ -13,10 +16,4 @@ def _transform(rec: dict) -> dict:
     }
 
 
-WORKOUT_ENDPOINT = {
-    "name": "workout",
-    "api_path": "workout",
-    "table": "workout",
-    "pk": "id",
-    "transform": _transform,
-}
+WORKOUT_ENDPOINT = simple_endpoint("workout", pk="id", transform=_transform)

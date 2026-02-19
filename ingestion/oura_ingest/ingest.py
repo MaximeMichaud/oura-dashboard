@@ -16,6 +16,7 @@ from .endpoints import ALL_ENDPOINTS
 class TokenExpiredError(Exception):
     pass
 
+
 log = logging.getLogger(__name__)
 
 BATCH_SIZE = 500
@@ -90,25 +91,26 @@ def _update_sync_log(engine: Engine, endpoint_name: str, count: int):
         conn.execute(text(sql), {"ep": endpoint_name, "d": date.today().isoformat(), "c": count})
 
 
-def sync_endpoint(engine: Engine, client: OuraClient, ep: dict) -> int:
+def sync_endpoint(engine: Engine, client: OuraClient, ep) -> int:
     """Sync a single endpoint: fetch from API, transform, upsert."""
-    start = _get_start_date(engine, ep["name"])
+    start = _get_start_date(engine, ep.name)
     end = date.today().isoformat()
-    log.info("[%s] Fetching %s -> %s", ep["name"], start, end)
+    log.info("[%s] Fetching %s -> %s", ep.name, start, end)
 
     rows = []
-    for rec in client.fetch_all(ep["api_path"], start, end):
+    for rec in client.fetch_all(ep.api_path, start, end):
         try:
-            rows.append(ep["transform"](rec))
+            rows.append(ep.transform(rec))
         except Exception:
-            log.warning("[%s] Transform error for record: %s", ep["name"], rec.get("id", rec.get("day", "?")), exc_info=True)
+            rec_id = rec.get("id", rec.get("day", "?"))
+            log.warning("[%s] Transform error for record: %s", ep.name, rec_id, exc_info=True)
 
-    count = _upsert(engine, ep["table"], ep["pk"], rows)
+    count = _upsert(engine, ep.table, ep.pk, rows)
     if count > 0:
-        _update_sync_log(engine, ep["name"], count)
+        _update_sync_log(engine, ep.name, count)
     else:
-        log.info("[%s] No records upserted, sync_log not advanced", ep["name"])
-    log.info("[%s] Upserted %d records", ep["name"], count)
+        log.info("[%s] No records upserted, sync_log not advanced", ep.name)
+    log.info("[%s] Upserted %d records", ep.name, count)
     return count
 
 
@@ -122,7 +124,7 @@ def sync_all(engine: Engine, client: OuraClient):
             if e.response is not None and e.response.status_code == 401:
                 log.critical("Oura API token is invalid or expired (401). Stopping all syncs.")
                 raise TokenExpiredError("Oura API token is invalid or expired") from e
-            log.error("[%s] Sync failed", ep["name"], exc_info=True)
+            log.error("[%s] Sync failed", ep.name, exc_info=True)
         except Exception:
-            log.error("[%s] Sync failed", ep["name"], exc_info=True)
+            log.error("[%s] Sync failed", ep.name, exc_info=True)
     log.info("Sync complete - %d total records", total)

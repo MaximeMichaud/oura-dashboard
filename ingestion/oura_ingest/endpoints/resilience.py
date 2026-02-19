@@ -1,3 +1,6 @@
+from ..endpoint import simple_endpoint
+
+
 def _transform(rec: dict) -> dict:
     c = rec.get("contributors", {})
     return {
@@ -9,10 +12,4 @@ def _transform(rec: dict) -> dict:
     }
 
 
-DAILY_RESILIENCE_ENDPOINT = {
-    "name": "daily_resilience",
-    "api_path": "daily_resilience",
-    "table": "daily_resilience",
-    "pk": "day",
-    "transform": _transform,
-}
+DAILY_RESILIENCE_ENDPOINT = simple_endpoint("daily_resilience", pk="day", transform=_transform)

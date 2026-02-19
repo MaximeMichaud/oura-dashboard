@@ -1,3 +1,6 @@
+from ..endpoint import simple_endpoint
+
+
 def _transform(rec: dict) -> dict:
     ob = rec.get("optimal_bedtime") or {}
     return {
@@ -11,10 +14,4 @@ def _transform(rec: dict) -> dict:
     }
 
 
-SLEEP_TIME_ENDPOINT = {
-    "name": "sleep_time",
-    "api_path": "sleep_time",
-    "table": "sleep_time",
-    "pk": "id",
-    "transform": _transform,
-}
+SLEEP_TIME_ENDPOINT = simple_endpoint("sleep_time", pk="id", transform=_transform)
