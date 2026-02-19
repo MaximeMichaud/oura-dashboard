@@ -33,6 +33,12 @@ services:
       HISTORY_START_DATE: ${HISTORY_START_DATE:-2020-01-01}
       SYNC_INTERVAL_MINUTES: ${SYNC_INTERVAL_MINUTES:-30}
       OVERLAP_DAYS: ${OVERLAP_DAYS:-2}
+    healthcheck:
+      test: ["CMD-SHELL", "find /tmp/oura-last-sync -mmin -90 2>/dev/null || exit 1"]
+      interval: 5m
+      timeout: 5s
+      retries: 3
+      start_period: 2m
 
   grafana:
     image: grafana/grafana:12.3.3
@@ -45,12 +51,19 @@ services:
     environment:
       GF_SECURITY_ADMIN_USER: ${GF_ADMIN_USER:-admin}
       GF_SECURITY_ADMIN_PASSWORD: ${GF_ADMIN_PASSWORD:-admin}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-oura}
     volumes:
       - grafana-storage:/var/lib/grafana
       - ./grafana/grafana.ini:/etc/grafana/grafana.ini:ro
       - ./grafana/provisioning/datasources:/etc/grafana/provisioning/datasources:ro
       - ./grafana/provisioning/dashboards:/etc/grafana/provisioning/dashboards:ro
       - ./grafana/provisioning/dashboards-json:/var/lib/grafana/dashboards:ro
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO /dev/null http://localhost:3000/api/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 30s
 
 volumes:
   pgdata:

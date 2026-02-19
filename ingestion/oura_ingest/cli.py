@@ -10,10 +10,6 @@ from .config import cfg
 from .db import wait_for_db
 from .ingest import TokenExpiredError, sync_all
 
-logging.basicConfig(
-    level=os.environ.get("LOG_LEVEL", "INFO").upper(),
-    format="%(asctime)s [%(levelname)s] %(name)s - %(message)s",
-)
 log = logging.getLogger(__name__)
 
 _stop = threading.Event()
@@ -25,6 +21,11 @@ def _shutdown(signum, frame):
 
 
 def main():
+    logging.basicConfig(
+        level=os.environ.get("LOG_LEVEL", "INFO").upper(),
+        format="%(asctime)s [%(levelname)s] %(name)s - %(message)s",
+    )
+
     signal.signal(signal.SIGTERM, _shutdown)
     signal.signal(signal.SIGINT, _shutdown)
 

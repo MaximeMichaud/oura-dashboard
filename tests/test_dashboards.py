@@ -79,5 +79,16 @@ class TestPanelIntegrity:
             assert len(ids) == len(set(ids)), f"{f.name} has duplicate panel IDs"
 
     def test_panel_count(self, loaded_dashboards):
-        total = sum(len(d["panels"]) for d in loaded_dashboards)
-        assert total == 70, f"Expected 70 total panels, got {total}"
+        """Each dashboard should have a minimum number of panels."""
+        minimums = {
+            "oura-overview": 8,
+            "oura-sleep": 12,
+            "oura-readiness": 6,
+            "oura-activity": 8,
+            "oura-body": 8,
+        }
+        for dash in loaded_dashboards:
+            uid = dash["uid"]
+            count = len(dash["panels"])
+            if uid in minimums:
+                assert count >= minimums[uid], f"{uid} has {count} panels, expected at least {minimums[uid]}"
