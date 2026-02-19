@@ -1662,7 +1662,7 @@
             "type": "grafana-postgresql-datasource",
             "uid": "oura-pg"
           },
-          "rawSql": "SELECT CASE WHEN optimal_bedtime_start IS NOT NULL THEN to_char((timestamp '2000-01-02 00:00:00' + (optimal_bedtime_start * interval '1 second'))::time, 'HH24:MI') || ' - ' || to_char((timestamp '2000-01-02 00:00:00' + (optimal_bedtime_end * interval '1 second'))::time, 'HH24:MI') ELSE initcap(replace(recommendation, '_', ' ')) END as \"Bedtime\" FROM sleep_time ORDER BY day DESC LIMIT 1",
+          "rawSql": "SELECT CASE WHEN optimal_bedtime_start IS NOT NULL THEN to_char((timestamp '2000-01-02 00:00:00' + (optimal_bedtime_start * interval '1 second'))::time, 'HH24:MI') || ' - ' || to_char((timestamp '2000-01-02 00:00:00' + (optimal_bedtime_end * interval '1 second'))::time, 'HH24:MI') ELSE initcap(replace(recommendation, '_', ' ')) END as \"Bedtime\" FROM sleep_time WHERE day <= ($__timeTo()::timestamptz)::date ORDER BY day DESC LIMIT 1",
           "format": "table",
           "refId": "A"
         }
@@ -1710,7 +1710,7 @@
             "type": "grafana-postgresql-datasource",
             "uid": "oura-pg"
           },
-          "rawSql": "SELECT initcap(replace(recommendation, '_', ' ')) as \"Recommendation\" FROM sleep_time ORDER BY day DESC LIMIT 1",
+          "rawSql": "SELECT initcap(replace(recommendation, '_', ' ')) as \"Recommendation\" FROM sleep_time WHERE day <= ($__timeTo()::timestamptz)::date ORDER BY day DESC LIMIT 1",
           "format": "table",
           "refId": "A"
         }

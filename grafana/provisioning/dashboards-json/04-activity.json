@@ -37,7 +37,7 @@
             "type": "grafana-postgresql-datasource",
             "uid": "oura-pg"
           },
-          "rawSql": "SELECT active_calories FROM daily_activity ORDER BY day DESC LIMIT 1",
+          "rawSql": "SELECT active_calories FROM daily_activity WHERE day <= ($__timeTo()::timestamptz)::date ORDER BY day DESC LIMIT 1",
           "format": "table"
         }
       ],
@@ -95,7 +95,7 @@
             "type": "grafana-postgresql-datasource",
             "uid": "oura-pg"
           },
-          "rawSql": "SELECT steps FROM daily_activity ORDER BY day DESC LIMIT 1",
+          "rawSql": "SELECT steps FROM daily_activity WHERE day <= ($__timeTo()::timestamptz)::date ORDER BY day DESC LIMIT 1",
           "format": "table"
         }
       ],
@@ -153,13 +153,13 @@
             "type": "grafana-postgresql-datasource",
             "uid": "oura-pg"
           },
-          "rawSql": "SELECT total_calories FROM daily_activity ORDER BY day DESC LIMIT 1",
+          "rawSql": "SELECT total_calories FROM daily_activity WHERE day <= ($__timeTo()::timestamptz)::date ORDER BY day DESC LIMIT 1",
           "format": "table"
         }
       ],
       "fieldConfig": {
         "defaults": {
-          "unit": "short",
+          "unit": "kcal",
           "color": {
             "mode": "fixed",
             "fixedColor": "#D62728"
@@ -967,7 +967,7 @@
             "type": "grafana-postgresql-datasource",
             "uid": "oura-pg"
           },
-          "rawSql": "SELECT NULLIF(score, 0) FROM daily_activity ORDER BY day DESC LIMIT 1",
+          "rawSql": "SELECT NULLIF(score, 0) FROM daily_activity WHERE day <= ($__timeTo()::timestamptz)::date ORDER BY day DESC LIMIT 1",
           "format": "table"
         }
       ],

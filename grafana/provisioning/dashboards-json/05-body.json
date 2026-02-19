@@ -19,7 +19,7 @@
       "targets": [
         {
           "refId": "A",
-          "rawSql": "SELECT NULLIF(spo2_percentage_average, 0) as \"SpO2 %\" FROM daily_spo2 WHERE spo2_percentage_average > 0 ORDER BY day DESC LIMIT 1",
+          "rawSql": "SELECT NULLIF(spo2_percentage_average, 0) as \"SpO2 %\" FROM daily_spo2 WHERE spo2_percentage_average > 0 AND day <= ($__timeTo()::timestamptz)::date ORDER BY day DESC LIMIT 1",
           "format": "table"
         }
       ],
@@ -58,7 +58,7 @@
       "targets": [
         {
           "refId": "A",
-          "rawSql": "SELECT breathing_disturbance_index FROM daily_spo2 ORDER BY day DESC LIMIT 1",
+          "rawSql": "SELECT breathing_disturbance_index FROM daily_spo2 WHERE day <= ($__timeTo()::timestamptz)::date ORDER BY day DESC LIMIT 1",
           "format": "table"
         }
       ],
@@ -141,7 +141,7 @@
       "targets": [
         {
           "refId": "A",
-          "rawSql": "SELECT CASE day_summary WHEN 'restored' THEN 1 WHEN 'normal' THEN 2 WHEN 'stressful' THEN 3 ELSE 0 END as stress_level FROM daily_stress WHERE day_summary IS NOT NULL AND day_summary <> '' ORDER BY day DESC LIMIT 1",
+          "rawSql": "SELECT CASE day_summary WHEN 'restored' THEN 1 WHEN 'normal' THEN 2 WHEN 'stressful' THEN 3 ELSE 0 END as stress_level FROM daily_stress WHERE day_summary IS NOT NULL AND day_summary <> '' AND day <= ($__timeTo()::timestamptz)::date ORDER BY day DESC LIMIT 1",
           "format": "table"
         }
       ],
@@ -186,7 +186,7 @@
       "targets": [
         {
           "refId": "A",
-          "rawSql": "SELECT stress_high/60.0 as \"Stress (min)\" FROM daily_stress ORDER BY day DESC LIMIT 1",
+          "rawSql": "SELECT stress_high/60.0 as \"Stress (min)\" FROM daily_stress WHERE day <= ($__timeTo()::timestamptz)::date ORDER BY day DESC LIMIT 1",
           "format": "table"
         }
       ],
@@ -594,6 +594,87 @@
           "mode": "single"
         }
       }
+    },
+    {
+      "id": 13,
+      "type": "stat",
+      "title": "VO2 Max",
+      "datasource": {"type": "grafana-postgresql-datasource", "uid": "oura-pg"},
+      "gridPos": {"x": 0, "y": 18, "w": 6, "h": 4},
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "decimals": 1,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"color": "red", "value": null},
+              {"color": "yellow", "value": 35},
+              {"color": "green", "value": 45}
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {"colorMode": "value", "graphMode": "none", "reduceOptions": {"calcs": ["lastNotNull"]}},
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {"type": "grafana-postgresql-datasource", "uid": "oura-pg"},
+          "rawSql": "SELECT vo2_max FROM daily_vo2_max WHERE day <= ($__timeTo()::timestamptz)::date ORDER BY day DESC LIMIT 1",
+          "format": "table"
+        }
+      ]
+    },
+    {
+      "id": 14,
+      "type": "timeseries",
+      "title": "VO2 Max Trend",
+      "datasource": {"type": "grafana-postgresql-datasource", "uid": "oura-pg"},
+      "gridPos": {"x": 6, "y": 18, "w": 12, "h": 8},
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "custom": {"drawStyle": "line", "lineWidth": 2, "fillOpacity": 10, "pointSize": 5, "showPoints": "auto"},
+          "displayName": "VO2 Max"
+        },
+        "overrides": []
+      },
+      "options": {"legend": {"displayMode": "list", "placement": "bottom"}, "tooltip": {"mode": "single"}},
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {"type": "grafana-postgresql-datasource", "uid": "oura-pg"},
+          "rawSql": "SELECT day AS time, vo2_max FROM daily_vo2_max WHERE $__timeFilter(day) ORDER BY day",
+          "format": "table"
+        }
+      ]
+    },
+    {
+      "id": 15,
+      "type": "stat",
+      "title": "VO2 Max Personal Best",
+      "description": "All-time personal best",
+      "datasource": {"type": "grafana-postgresql-datasource", "uid": "oura-pg"},
+      "gridPos": {"x": 18, "y": 18, "w": 6, "h": 4},
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "decimals": 1,
+          "color": {"mode": "fixed", "fixedColor": "orange"},
+          "thresholds": {"mode": "absolute", "steps": [{"color": "orange", "value": null}]}
+        },
+        "overrides": []
+      },
+      "options": {"colorMode": "value", "graphMode": "none", "reduceOptions": {"calcs": ["lastNotNull"]}},
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {"type": "grafana-postgresql-datasource", "uid": "oura-pg"},
+          "rawSql": "SELECT MAX(vo2_max) AS vo2_max_pb FROM daily_vo2_max",
+          "format": "table"
+        }
+      ]
     }
   ],
   "templating": {

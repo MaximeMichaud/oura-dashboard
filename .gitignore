@@ -24,6 +24,13 @@ package-lock.json
 # Claude local state
 .claude/
 
+# TaskMaster
+.taskmaster/
+
+# Linter/test caches
+.ruff_cache/
+.pytest_cache/
+
 # Personal data
 sleep_data.json
 

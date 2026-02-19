@@ -21,7 +21,7 @@
       "targets": [
         {
           "refId": "A",
-          "rawSql": "SELECT score FROM daily_readiness ORDER BY day DESC LIMIT 1",
+          "rawSql": "SELECT score FROM daily_readiness WHERE day <= ($__timeTo()::timestamptz)::date ORDER BY day DESC LIMIT 1",
           "format": "table"
         }
       ],
@@ -64,7 +64,7 @@
       "targets": [
         {
           "refId": "A",
-          "rawSql": "SELECT temperature_deviation FROM daily_readiness ORDER BY day DESC LIMIT 1",
+          "rawSql": "SELECT temperature_deviation FROM daily_readiness WHERE day <= ($__timeTo()::timestamptz)::date ORDER BY day DESC LIMIT 1",
           "format": "table"
         }
       ],

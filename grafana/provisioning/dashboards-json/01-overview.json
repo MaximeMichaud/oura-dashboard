@@ -24,7 +24,7 @@
       "targets": [
         {
           "datasource": { "type": "grafana-postgresql-datasource", "uid": "oura-pg" },
-          "rawSql": "SELECT score FROM daily_sleep ORDER BY day DESC LIMIT 1",
+          "rawSql": "SELECT score FROM daily_sleep WHERE day <= ($__timeTo()::timestamptz)::date ORDER BY day DESC LIMIT 1",
           "format": "table",
           "refId": "A"
         }
@@ -70,7 +70,7 @@
       "targets": [
         {
           "datasource": { "type": "grafana-postgresql-datasource", "uid": "oura-pg" },
-          "rawSql": "SELECT score FROM daily_readiness ORDER BY day DESC LIMIT 1",
+          "rawSql": "SELECT score FROM daily_readiness WHERE day <= ($__timeTo()::timestamptz)::date ORDER BY day DESC LIMIT 1",
           "format": "table",
           "refId": "A"
         }
@@ -116,7 +116,7 @@
       "targets": [
         {
           "datasource": { "type": "grafana-postgresql-datasource", "uid": "oura-pg" },
-          "rawSql": "SELECT active_calories FROM daily_activity ORDER BY day DESC LIMIT 1",
+          "rawSql": "SELECT active_calories FROM daily_activity WHERE day <= ($__timeTo()::timestamptz)::date ORDER BY day DESC LIMIT 1",
           "format": "table",
           "refId": "A"
         }
@@ -127,7 +127,7 @@
             "fixedColor": "#FF7F0E",
             "mode": "fixed"
           },
-          "unit": "short",
+          "unit": "kcal",
           "thresholds": {
             "mode": "absolute",
             "steps": [
@@ -161,7 +161,7 @@
       "targets": [
         {
           "datasource": { "type": "grafana-postgresql-datasource", "uid": "oura-pg" },
-          "rawSql": "SELECT steps FROM daily_activity ORDER BY day DESC LIMIT 1",
+          "rawSql": "SELECT steps FROM daily_activity WHERE day <= ($__timeTo()::timestamptz)::date ORDER BY day DESC LIMIT 1",
           "format": "table",
           "refId": "A"
         }
@@ -206,7 +206,7 @@
       "targets": [
         {
           "datasource": { "type": "grafana-postgresql-datasource", "uid": "oura-pg" },
-          "rawSql": "SELECT CASE day_summary WHEN 'restored' THEN 1 WHEN 'normal' THEN 2 WHEN 'stressful' THEN 3 ELSE 0 END as stress_level FROM daily_stress WHERE day_summary IS NOT NULL AND day_summary <> '' ORDER BY day DESC LIMIT 1",
+          "rawSql": "SELECT CASE day_summary WHEN 'restored' THEN 1 WHEN 'normal' THEN 2 WHEN 'stressful' THEN 3 ELSE 0 END as stress_level FROM daily_stress WHERE day_summary IS NOT NULL AND day_summary <> '' AND day <= ($__timeTo()::timestamptz)::date ORDER BY day DESC LIMIT 1",
           "format": "table",
           "refId": "A"
         }
@@ -255,7 +255,7 @@
       "targets": [
         {
           "datasource": { "type": "grafana-postgresql-datasource", "uid": "oura-pg" },
-          "rawSql": "SELECT CASE level WHEN 'limited' THEN 1 WHEN 'adequate' THEN 2 WHEN 'solid' THEN 3 WHEN 'strong' THEN 4 WHEN 'exceptional' THEN 5 ELSE 0 END as resilience_level FROM daily_resilience ORDER BY day DESC LIMIT 1",
+          "rawSql": "SELECT CASE level WHEN 'limited' THEN 1 WHEN 'adequate' THEN 2 WHEN 'solid' THEN 3 WHEN 'strong' THEN 4 WHEN 'exceptional' THEN 5 ELSE 0 END as resilience_level FROM daily_resilience WHERE day <= ($__timeTo()::timestamptz)::date ORDER BY day DESC LIMIT 1",
           "format": "table",
           "refId": "A"
         }
@@ -563,6 +563,8 @@
       "id": 10,
       "title": "Steps (30 days)",
       "type": "barchart",
+      "timeFrom": "30d",
+      "hideTimeOverride": true,
       "gridPos": { "h": 8, "w": 8, "x": 8, "y": 12 },
       "datasource": { "type": "grafana-postgresql-datasource", "uid": "oura-pg" },
       "targets": [
