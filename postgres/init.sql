@@ -32,6 +32,7 @@ CREATE TABLE IF NOT EXISTS sleep (
 );
 CREATE INDEX IF NOT EXISTS idx_sleep_day ON sleep(day);
 CREATE INDEX IF NOT EXISTS idx_sleep_day_type ON sleep(day, type);
+CREATE INDEX IF NOT EXISTS idx_sleep_type_day_total ON sleep(type, day, total_sleep DESC);
 
 CREATE TABLE IF NOT EXISTS daily_sleep (
     day                     DATE PRIMARY KEY,
@@ -158,8 +159,85 @@ CREATE TABLE IF NOT EXISTS sleep_time (
 CREATE INDEX IF NOT EXISTS idx_sleep_time_day ON sleep_time(day);
 
 CREATE TABLE IF NOT EXISTS sync_log (
-    endpoint        TEXT PRIMARY KEY,
-    last_sync_date  DATE NOT NULL,
-    record_count    INTEGER DEFAULT 0,
-    updated_at      TIMESTAMPTZ DEFAULT now()
+    endpoint            TEXT PRIMARY KEY,
+    last_sync_date      DATE,
+    record_count        INTEGER DEFAULT 0,
+    updated_at          TIMESTAMPTZ DEFAULT now(),
+    last_error          TEXT,
+    consecutive_failures INTEGER DEFAULT 0,
+    last_success_at     TIMESTAMPTZ
 );
+
+-- Sync history: one row per sync attempt for debugging
+CREATE TABLE IF NOT EXISTS sync_history (
+    id              SERIAL PRIMARY KEY,
+    endpoint        TEXT NOT NULL,
+    synced_at       TIMESTAMPTZ DEFAULT now(),
+    record_count    INTEGER,
+    duration_seconds REAL,
+    status          TEXT NOT NULL,  -- success, error
+    error_message   TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_sync_history_endpoint_time ON sync_history(endpoint, synced_at DESC);
+
+-- CHECK constraints (idempotent via DO block for existing databases)
+DO $$ BEGIN
+    ALTER TABLE sleep ADD CONSTRAINT chk_sleep_type
+        CHECK (type IN ('long_sleep', 'late_nap', 'rest', 'sleep', 'nap'));
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
+
+DO $$ BEGIN
+    ALTER TABLE sleep ADD CONSTRAINT chk_sleep_efficiency
+        CHECK (efficiency BETWEEN 0 AND 100);
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
+
+DO $$ BEGIN
+    ALTER TABLE daily_sleep ADD CONSTRAINT chk_daily_sleep_score
+        CHECK (score BETWEEN 0 AND 100);
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
+
+DO $$ BEGIN
+    ALTER TABLE daily_readiness ADD CONSTRAINT chk_daily_readiness_score
+        CHECK (score BETWEEN 0 AND 100);
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
+
+DO $$ BEGIN
+    ALTER TABLE daily_activity ADD CONSTRAINT chk_daily_activity_score
+        CHECK (score BETWEEN 0 AND 100);
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
+
+DO $$ BEGIN
+    ALTER TABLE daily_resilience ADD CONSTRAINT chk_resilience_level
+        CHECK (level IN ('limited', 'adequate', 'solid', 'strong', 'exceptional'));
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
+
+DO $$ BEGIN
+    ALTER TABLE daily_stress ADD CONSTRAINT chk_stress_day_summary
+        CHECK (day_summary IS NULL OR day_summary IN ('restored', 'normal', 'stressful'));
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
+
+-- Add new columns to sync_log for existing databases (idempotent)
+DO $$ BEGIN
+    ALTER TABLE sync_log ADD COLUMN last_error TEXT;
+EXCEPTION WHEN duplicate_column THEN NULL;
+END $$;
+
+DO $$ BEGIN
+    ALTER TABLE sync_log ADD COLUMN consecutive_failures INTEGER DEFAULT 0;
+EXCEPTION WHEN duplicate_column THEN NULL;
+END $$;
+
+DO $$ BEGIN
+    ALTER TABLE sync_log ADD COLUMN last_success_at TIMESTAMPTZ;
+EXCEPTION WHEN duplicate_column THEN NULL;
+END $$;
+
+-- Make last_sync_date nullable for existing databases (new sync_log rows may start without a date)
+ALTER TABLE sync_log ALTER COLUMN last_sync_date DROP NOT NULL;

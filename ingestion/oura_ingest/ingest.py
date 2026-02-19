@@ -1,5 +1,6 @@
 import logging
 import re
+import time
 from datetime import date, timedelta
 
 import requests
@@ -83,16 +84,48 @@ def _upsert(engine: Engine, table: str, pk: str, rows: list[dict]) -> int:
 
 def _update_sync_log(engine: Engine, endpoint_name: str, count: int):
     sql = (
-        "INSERT INTO sync_log (endpoint, last_sync_date, record_count, updated_at) "
-        "VALUES (:ep, :d, :c, now()) "
-        "ON CONFLICT (endpoint) DO UPDATE SET last_sync_date = :d, record_count = :c, updated_at = now()"
+        "INSERT INTO sync_log (endpoint, last_sync_date, record_count, updated_at,"
+        " last_error, consecutive_failures, last_success_at) "
+        "VALUES (:ep, :d, :c, now(), NULL, 0, now()) "
+        "ON CONFLICT (endpoint) DO UPDATE SET "
+        "last_sync_date = :d, record_count = :c, updated_at = now(), "
+        "last_error = NULL, consecutive_failures = 0, last_success_at = now()"
     )
     with engine.begin() as conn:
         conn.execute(text(sql), {"ep": endpoint_name, "d": date.today().isoformat(), "c": count})
 
 
+def _record_sync_failure(engine: Engine, endpoint_name: str, error_msg: str):
+    sql = (
+        "INSERT INTO sync_log (endpoint, updated_at, last_error, consecutive_failures) "
+        "VALUES (:ep, now(), :err, 1) "
+        "ON CONFLICT (endpoint) DO UPDATE SET "
+        "last_error = :err, consecutive_failures = sync_log.consecutive_failures + 1, "
+        "updated_at = now()"
+    )
+    with engine.begin() as conn:
+        conn.execute(text(sql), {"ep": endpoint_name, "err": error_msg})
+
+
+def _record_sync_history(
+    engine: Engine,
+    endpoint_name: str,
+    count: int,
+    duration: float,
+    status: str,
+    error: str | None = None,
+):
+    sql = (
+        "INSERT INTO sync_history (endpoint, record_count, duration_seconds, status, error_message) "
+        "VALUES (:ep, :cnt, :dur, :status, :err)"
+    )
+    with engine.begin() as conn:
+        conn.execute(text(sql), {"ep": endpoint_name, "cnt": count, "dur": duration, "status": status, "err": error})
+
+
 def sync_endpoint(engine: Engine, client: OuraClient, ep) -> int:
     """Sync a single endpoint: fetch from API, transform, upsert."""
+    t0 = time.monotonic()
     start = _get_start_date(engine, ep.name)
     end = date.today().isoformat()
     log.info("[%s] Fetching %s -> %s", ep.name, start, end)
@@ -106,11 +139,15 @@ def sync_endpoint(engine: Engine, client: OuraClient, ep) -> int:
             log.warning("[%s] Transform error for record: %s", ep.name, rec_id, exc_info=True)
 
     count = _upsert(engine, ep.table, ep.pk, rows)
+    duration = time.monotonic() - t0
+
     if count > 0:
         _update_sync_log(engine, ep.name, count)
     else:
         log.info("[%s] No records upserted, sync_log not advanced", ep.name)
-    log.info("[%s] Upserted %d records", ep.name, count)
+
+    _record_sync_history(engine, ep.name, count, duration, "success")
+    log.info("[%s] Upserted %d records in %.1fs", ep.name, count, duration)
     return count
 
 
@@ -124,7 +161,11 @@ def sync_all(engine: Engine, client: OuraClient):
             if e.response is not None and e.response.status_code == 401:
                 log.critical("Oura API token is invalid or expired (401). Stopping all syncs.")
                 raise TokenExpiredError("Oura API token is invalid or expired") from e
+            _record_sync_failure(engine, ep.name, str(e))
+            _record_sync_history(engine, ep.name, 0, 0, "error", str(e))
             log.error("[%s] Sync failed", ep.name, exc_info=True)
-        except Exception:
+        except Exception as e:
+            _record_sync_failure(engine, ep.name, str(e))
+            _record_sync_history(engine, ep.name, 0, 0, "error", str(e))
             log.error("[%s] Sync failed", ep.name, exc_info=True)
     log.info("Sync complete - %d total records", total)

@@ -120,7 +120,7 @@ jobs:
           TABLE_COUNT=$(PGPASSWORD=oura psql -h localhost -U oura -d oura -t -c \
             "SELECT count(*) FROM information_schema.tables WHERE table_schema = 'public' AND table_type = 'BASE TABLE'" | xargs)
           echo "Tables found: $TABLE_COUNT"
-          [ "$TABLE_COUNT" -eq 12 ] || { echo "Expected 12 tables, got $TABLE_COUNT"; exit 1; }
+          [ "$TABLE_COUNT" -eq 13 ] || { echo "Expected 13 tables, got $TABLE_COUNT"; exit 1; }
 
       - name: Verify indexes
         run: |
