@@ -45,7 +45,7 @@ def _get_start_date(engine: Engine, endpoint_name: str) -> str:
             text("SELECT last_sync_date FROM sync_log WHERE endpoint = :ep"),
             {"ep": endpoint_name},
         ).fetchone()
-    if row:
+    if row and row[0]:
         d = row[0] - timedelta(days=cfg.OVERLAP_DAYS)
         return d.isoformat()
     return cfg.HISTORY_START_DATE

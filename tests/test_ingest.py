@@ -99,6 +99,28 @@ class TestGetStartDate:
             os.environ.clear()
             os.environ.update(env_backup)
 
+    def test_with_null_last_sync_date(self):
+        """When sync_log row exists but last_sync_date is NULL, use HISTORY_START_DATE."""
+        engine = MagicMock()
+        conn = MagicMock()
+        engine.connect.return_value.__enter__ = Mock(return_value=conn)
+        engine.connect.return_value.__exit__ = Mock(return_value=False)
+        conn.execute.return_value.fetchone.return_value = (None,)
+
+        env_backup = os.environ.copy()
+        os.environ["HISTORY_START_DATE"] = "2022-01-01"
+        try:
+            from oura_ingest.config import Config
+
+            with patch("oura_ingest.ingest.cfg", Config()):
+                from oura_ingest.ingest import _get_start_date
+
+                result = _get_start_date(engine, "daily_sleep")
+                assert result == "2022-01-01"
+        finally:
+            os.environ.clear()
+            os.environ.update(env_backup)
+
 
 # --- Task 25: sync_endpoint transform error handling ---
 
