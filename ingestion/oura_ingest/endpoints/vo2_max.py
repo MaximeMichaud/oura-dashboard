@@ -1,4 +1,4 @@
-from ..endpoint import simple_endpoint
+from ..endpoint import Endpoint
 
 
 def _transform(rec: dict) -> dict:
@@ -8,4 +8,10 @@ def _transform(rec: dict) -> dict:
     }
 
 
-DAILY_VO2_MAX_ENDPOINT = simple_endpoint("daily_vo2_max", pk="day", transform=_transform)
+DAILY_VO2_MAX_ENDPOINT = Endpoint(
+    name="daily_vo2_max",
+    api_path="vO2_max",
+    table="daily_vo2_max",
+    pk="day",
+    transform=_transform,
+)

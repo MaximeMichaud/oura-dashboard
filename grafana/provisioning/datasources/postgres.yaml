@@ -13,4 +13,4 @@ datasources:
       sslmode: disable
       postgresVersion: 1600
     secureJsonData:
-      password: ${POSTGRES_PASSWORD:-oura}
+      password: $POSTGRES_PASSWORD
