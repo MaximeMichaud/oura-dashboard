@@ -1,4 +1,4 @@
-"""Tests for oura_ingest.ingest (tasks 21, 23, 25)."""
+"""Tests for oura_ingest.ingest (tasks 21, 23, 25, 27)."""
 
 import os
 from datetime import date, timedelta
@@ -161,3 +161,112 @@ class TestSyncEndpointTransformErrors:
 
         # Warning logged for bad record
         assert any("Transform error" in r.message for r in caplog.records)
+
+
+# --- Task 27: sync_log and sync_history tests ---
+
+
+class TestUpdateSyncLog:
+    def test_successful_sync_writes_sync_log(self):
+        """_update_sync_log executes an UPSERT with correct params."""
+        from oura_ingest.ingest import _update_sync_log
+
+        engine = MagicMock()
+        conn = MagicMock()
+        engine.begin.return_value.__enter__ = Mock(return_value=conn)
+        engine.begin.return_value.__exit__ = Mock(return_value=False)
+
+        _update_sync_log(engine, "daily_sleep", 42)
+
+        conn.execute.assert_called_once()
+        params = conn.execute.call_args[0][1]
+        assert params["ep"] == "daily_sleep"
+        assert params["c"] == 42
+
+    def test_sync_log_clears_error_fields(self):
+        """The SQL should set last_error=NULL and consecutive_failures=0."""
+        from oura_ingest.ingest import _update_sync_log
+
+        engine = MagicMock()
+        conn = MagicMock()
+        engine.begin.return_value.__enter__ = Mock(return_value=conn)
+        engine.begin.return_value.__exit__ = Mock(return_value=False)
+
+        _update_sync_log(engine, "daily_sleep", 10)
+
+        sql_str = str(conn.execute.call_args[0][0])
+        assert "last_error" in sql_str
+        assert "consecutive_failures" in sql_str
+
+
+class TestRecordSyncFailure:
+    def test_failure_records_error(self):
+        """_record_sync_failure writes error message to sync_log."""
+        from oura_ingest.ingest import _record_sync_failure
+
+        engine = MagicMock()
+        conn = MagicMock()
+        engine.begin.return_value.__enter__ = Mock(return_value=conn)
+        engine.begin.return_value.__exit__ = Mock(return_value=False)
+
+        _record_sync_failure(engine, "daily_sleep", "Connection refused")
+
+        conn.execute.assert_called_once()
+        params = conn.execute.call_args[0][1]
+        assert params["ep"] == "daily_sleep"
+        assert params["err"] == "Connection refused"
+
+
+class TestRecordSyncHistory:
+    def test_history_row_created(self):
+        """_record_sync_history inserts a new row with correct params."""
+        from oura_ingest.ingest import _record_sync_history
+
+        engine = MagicMock()
+        conn = MagicMock()
+        engine.begin.return_value.__enter__ = Mock(return_value=conn)
+        engine.begin.return_value.__exit__ = Mock(return_value=False)
+
+        _record_sync_history(engine, "daily_sleep", 50, 3.5, "success")
+
+        conn.execute.assert_called_once()
+        params = conn.execute.call_args[0][1]
+        assert params["ep"] == "daily_sleep"
+        assert params["cnt"] == 50
+        assert params["dur"] == 3.5
+        assert params["status"] == "success"
+        assert params["err"] is None
+
+    def test_history_with_error(self):
+        """_record_sync_history stores error message when provided."""
+        from oura_ingest.ingest import _record_sync_history
+
+        engine = MagicMock()
+        conn = MagicMock()
+        engine.begin.return_value.__enter__ = Mock(return_value=conn)
+        engine.begin.return_value.__exit__ = Mock(return_value=False)
+
+        _record_sync_history(engine, "daily_sleep", 0, 1.0, "error", "timeout")
+
+        params = conn.execute.call_args[0][1]
+        assert params["status"] == "error"
+        assert params["err"] == "timeout"
+
+
+class TestSyncOverlapGuard:
+    def test_skips_if_lock_held(self, caplog):
+        """sync_all should skip if another sync is in progress."""
+        from oura_ingest.ingest import _sync_lock, sync_all
+
+        engine = MagicMock()
+        client = MagicMock()
+
+        # Acquire the lock to simulate an in-progress sync
+        _sync_lock.acquire()
+        try:
+            with caplog.at_level("WARNING"):
+                sync_all(engine, client)
+
+            assert any("already in progress" in r.message for r in caplog.records)
+        finally:
+            _sync_lock.release()

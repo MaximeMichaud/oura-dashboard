@@ -1,0 +1,5 @@
+requests>=2.31,<3
+sqlalchemy>=2.0,<3
+psycopg2-binary>=2.9,<3
+tenacity>=8.2,<9
+schedule>=1.2,<2

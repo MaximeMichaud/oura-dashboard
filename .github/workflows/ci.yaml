@@ -69,10 +69,15 @@ jobs:
       - name: Install dependencies
         run: |
           pip install -r ingestion/requirements.txt
-          pip install pytest
+          pip install pytest pytest-cov
 
-      - name: Run tests
-        run: pytest tests/ -v
+      - name: Run tests with coverage
+        run: pytest tests/ -v --cov=oura_ingest --cov-report=term-missing --cov-fail-under=70
+
+      - name: Security audit
+        run: |
+          pip install pip-audit
+          pip-audit -r ingestion/requirements.txt
 
   build:
     name: Build
