@@ -532,36 +532,9 @@
             "type": "grafana-postgresql-datasource",
             "uid": "oura-pg"
           },
-          "rawSql": "SELECT day as time, deep_sleep/3600.0 as \"Deep\" FROM (SELECT DISTINCT ON (day) day, deep_sleep FROM sleep WHERE type='long_sleep' AND $__timeFilter(day) ORDER BY day, total_sleep DESC) sub ORDER BY day",
-          "format": "time_series",
+          "rawSql": "SELECT day as time, deep_sleep/3600.0 as \"Deep\", light_sleep/3600.0 as \"Light\", rem_sleep/3600.0 as \"REM\", awake_time/3600.0 as \"Awake\" FROM (SELECT DISTINCT ON (day) day, deep_sleep, light_sleep, rem_sleep, awake_time FROM sleep WHERE type='long_sleep' AND $__timeFilter(day) ORDER BY day, total_sleep DESC) sub ORDER BY day",
+          "format": "table",
           "refId": "A"
-        },
-        {
-          "datasource": {
-            "type": "grafana-postgresql-datasource",
-            "uid": "oura-pg"
-          },
-          "rawSql": "SELECT day as time, light_sleep/3600.0 as \"Light\" FROM (SELECT DISTINCT ON (day) day, light_sleep FROM sleep WHERE type='long_sleep' AND $__timeFilter(day) ORDER BY day, total_sleep DESC) sub ORDER BY day",
-          "format": "time_series",
-          "refId": "B"
-        },
-        {
-          "datasource": {
-            "type": "grafana-postgresql-datasource",
-            "uid": "oura-pg"
-          },
-          "rawSql": "SELECT day as time, rem_sleep/3600.0 as \"REM\" FROM (SELECT DISTINCT ON (day) day, rem_sleep FROM sleep WHERE type='long_sleep' AND $__timeFilter(day) ORDER BY day, total_sleep DESC) sub ORDER BY day",
-          "format": "time_series",
-          "refId": "C"
-        },
-        {
-          "datasource": {
-            "type": "grafana-postgresql-datasource",
-            "uid": "oura-pg"
-          },
-          "rawSql": "SELECT day as time, awake_time/3600.0 as \"Awake\" FROM (SELECT DISTINCT ON (day) day, awake_time FROM sleep WHERE type='long_sleep' AND $__timeFilter(day) ORDER BY day, total_sleep DESC) sub ORDER BY day",
-          "format": "time_series",
-          "refId": "D"
         }
       ],
       "fieldConfig": {
@@ -999,18 +972,9 @@
             "type": "grafana-postgresql-datasource",
             "uid": "oura-pg"
           },
-          "rawSql": "SELECT day as time, average_hrv as \"HRV\" FROM (SELECT DISTINCT ON (day) day, average_hrv FROM sleep WHERE type='long_sleep' AND $__timeFilter(day) ORDER BY day, total_sleep DESC) sub ORDER BY day",
-          "format": "time_series",
+          "rawSql": "SELECT day as time, average_hrv as \"HRV\", avg(average_hrv) OVER (ORDER BY day ROWS BETWEEN 6 PRECEDING AND CURRENT ROW) as \"7d Avg\" FROM (SELECT DISTINCT ON (day) day, average_hrv FROM sleep WHERE type='long_sleep' AND $__timeFilter(day) ORDER BY day, total_sleep DESC) sub ORDER BY day",
+          "format": "table",
           "refId": "A"
-        },
-        {
-          "datasource": {
-            "type": "grafana-postgresql-datasource",
-            "uid": "oura-pg"
-          },
-          "rawSql": "SELECT day as time, avg(average_hrv) OVER (ORDER BY day ROWS BETWEEN 6 PRECEDING AND CURRENT ROW) as \"7d Avg\" FROM (SELECT DISTINCT ON (day) day, average_hrv FROM sleep WHERE type='long_sleep' AND $__timeFilter(day) ORDER BY day, total_sleep DESC) sub ORDER BY day",
-          "format": "time_series",
-          "refId": "B"
         }
       ],
       "fieldConfig": {
@@ -1441,18 +1405,9 @@
             "type": "grafana-postgresql-datasource",
             "uid": "oura-pg"
           },
-          "rawSql": "SELECT day as time, latency/60.0 as \"Latency (min)\" FROM (SELECT DISTINCT ON (day) day, latency FROM sleep WHERE type='long_sleep' AND $__timeFilter(day) ORDER BY day, total_sleep DESC) sub ORDER BY day",
-          "format": "time_series",
+          "rawSql": "SELECT day as time, latency/60.0 as \"Latency (min)\", avg(latency/60.0) OVER (ORDER BY day ROWS BETWEEN 6 PRECEDING AND CURRENT ROW) as \"7d Avg\" FROM (SELECT DISTINCT ON (day) day, latency FROM sleep WHERE type='long_sleep' AND $__timeFilter(day) ORDER BY day, total_sleep DESC) sub ORDER BY day",
+          "format": "table",
           "refId": "A"
-        },
-        {
-          "datasource": {
-            "type": "grafana-postgresql-datasource",
-            "uid": "oura-pg"
-          },
-          "rawSql": "SELECT day as time, avg(latency/60.0) OVER (ORDER BY day ROWS BETWEEN 6 PRECEDING AND CURRENT ROW) as \"7d Avg\" FROM (SELECT DISTINCT ON (day) day, latency FROM sleep WHERE type='long_sleep' AND $__timeFilter(day) ORDER BY day, total_sleep DESC) sub ORDER BY day",
-          "format": "time_series",
-          "refId": "B"
         }
       ],
       "fieldConfig": {

@@ -611,17 +611,8 @@
             "type": "grafana-postgresql-datasource",
             "uid": "oura-pg"
           },
-          "rawSql": "SELECT day as time, active_calories as \"Active Cal\" FROM daily_activity WHERE $__timeFilter(day) ORDER BY day",
-          "format": "time_series"
-        },
-        {
-          "refId": "B",
-          "datasource": {
-            "type": "grafana-postgresql-datasource",
-            "uid": "oura-pg"
-          },
-          "rawSql": "SELECT day as time, steps as \"Steps\" FROM daily_activity WHERE $__timeFilter(day) ORDER BY day",
-          "format": "time_series"
+          "rawSql": "SELECT day as time, active_calories as \"Active Cal\", steps as \"Steps\" FROM daily_activity WHERE $__timeFilter(day) ORDER BY day",
+          "format": "table"
         }
       ],
       "timeFrom": null,

@@ -212,28 +212,8 @@
       "targets": [
         {
           "refId": "A",
-          "rawSql": "SELECT day as time, contributors_hrv_balance as \"HRV Balance\" FROM daily_readiness WHERE $__timeFilter(day) ORDER BY day",
-          "format": "time_series"
-        },
-        {
-          "refId": "B",
-          "rawSql": "SELECT day as time, contributors_sleep_balance as \"Sleep Balance\" FROM daily_readiness WHERE $__timeFilter(day) ORDER BY day",
-          "format": "time_series"
-        },
-        {
-          "refId": "C",
-          "rawSql": "SELECT day as time, contributors_recovery_index as \"Recovery Index\" FROM daily_readiness WHERE $__timeFilter(day) ORDER BY day",
-          "format": "time_series"
-        },
-        {
-          "refId": "D",
-          "rawSql": "SELECT day as time, contributors_resting_heart_rate as \"Resting HR\" FROM daily_readiness WHERE $__timeFilter(day) ORDER BY day",
-          "format": "time_series"
-        },
-        {
-          "refId": "E",
-          "rawSql": "SELECT day as time, contributors_sleep_regularity as \"Sleep Regularity\" FROM daily_readiness WHERE $__timeFilter(day) ORDER BY day",
-          "format": "time_series"
+          "rawSql": "SELECT day as time, contributors_hrv_balance as \"HRV Balance\", contributors_sleep_balance as \"Sleep Balance\", contributors_recovery_index as \"Recovery Index\", contributors_resting_heart_rate as \"Resting HR\", contributors_sleep_regularity as \"Sleep Regularity\" FROM daily_readiness WHERE $__timeFilter(day) ORDER BY day",
+          "format": "table"
         }
       ],
       "fieldConfig": {
@@ -325,12 +305,7 @@
       "targets": [
         {
           "refId": "A",
-          "rawSql": "SELECT day as time, score as \"Readiness\" FROM daily_readiness WHERE $__timeFilter(day) ORDER BY day",
-          "format": "time_series"
-        },
-        {
-          "refId": "B",
-          "rawSql": "SELECT day as time, AVG(score) OVER (ORDER BY day ROWS BETWEEN 6 PRECEDING AND CURRENT ROW) as \"7d Moving Avg\" FROM daily_readiness WHERE $__timeFilter(day) ORDER BY day",
+          "rawSql": "SELECT day as time, score as \"Readiness\", AVG(score) OVER (ORDER BY day ROWS BETWEEN 6 PRECEDING AND CURRENT ROW) as \"7d Moving Avg\" FROM daily_readiness WHERE $__timeFilter(day) ORDER BY day",
           "format": "time_series"
         }
       ],
@@ -411,12 +386,7 @@
       "targets": [
         {
           "refId": "A",
-          "rawSql": "SELECT day as time, temperature_deviation as \"Temp Deviation\" FROM daily_readiness WHERE $__timeFilter(day) ORDER BY day",
-          "format": "time_series"
-        },
-        {
-          "refId": "B",
-          "rawSql": "SELECT day as time, 0 as \"Baseline\" FROM daily_readiness WHERE $__timeFilter(day) ORDER BY day",
+          "rawSql": "SELECT day as time, temperature_deviation as \"Temp Deviation\", 0 as \"Baseline\" FROM daily_readiness WHERE $__timeFilter(day) ORDER BY day",
           "format": "time_series"
         }
       ],
