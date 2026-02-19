@@ -1,0 +1,39 @@
+apiVersion: 1
+
+groups:
+  - orgId: 1
+    name: oura-sync
+    folder: Oura Alerts
+    interval: 5m
+    rules:
+      - uid: sync-staleness
+        title: Sync Staleness Alert
+        condition: C
+        for: 10m
+        noDataState: Alerting
+        execErrState: Alerting
+        data:
+          - refId: A
+            datasourceUid: oura-pg
+            relativeTimeRange:
+              from: 600
+              to: 0
+            model:
+              rawSql: |
+                SELECT
+                  now() AS time,
+                  EXTRACT(EPOCH FROM (now() - MIN(updated_at)))/3600 AS hours_stale
+                FROM sync_log
+              format: table
+              intervalMs: 300000
+              maxDataPoints: 1
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              type: threshold
+              expression: A
+              conditions:
+                - evaluator:
+                    type: gt
+                    params:
+                      - 2

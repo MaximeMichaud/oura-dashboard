@@ -58,6 +58,7 @@ services:
       - ./grafana/provisioning/datasources:/etc/grafana/provisioning/datasources:ro
       - ./grafana/provisioning/dashboards:/etc/grafana/provisioning/dashboards:ro
       - ./grafana/provisioning/dashboards-json:/var/lib/grafana/dashboards:ro
+      - ./grafana/provisioning/alerting:/etc/grafana/provisioning/alerting:ro
     healthcheck:
       test: ["CMD-SHELL", "wget -qO /dev/null http://localhost:3000/api/health || exit 1"]
       interval: 10s

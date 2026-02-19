@@ -41,7 +41,7 @@ def _wait_for_rate_limit(retry_state) -> float:
     if isinstance(exc, RateLimitError):
         return min(exc.retry_after, MAX_RETRY_AFTER)
     # Exponential backoff for other retryable errors
-    return min(2 ** retry_state.attempt_number * 2, 120)
+    return min(2**retry_state.attempt_number * 2, 120)
 
 
 class OuraClient:
