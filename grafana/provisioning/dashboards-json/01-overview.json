@@ -641,7 +641,7 @@
       "targets": [
         {
           "datasource": { "type": "grafana-postgresql-datasource", "uid": "oura-pg" },
-          "rawSql": "SELECT NULLIF(spo2_percentage_average, 0) as \"SpO2 %\" FROM daily_spo2 WHERE spo2_percentage_average > 0 ORDER BY day DESC LIMIT 1",
+          "rawSql": "SELECT NULLIF(spo2_percentage_average, 0) as \"SpO2 %\" FROM daily_spo2 WHERE spo2_percentage_average > 0 AND day <= ($__timeTo()::timestamptz)::date ORDER BY day DESC LIMIT 1",
           "format": "table",
           "refId": "A"
         }
@@ -688,7 +688,7 @@
       "targets": [
         {
           "datasource": { "type": "grafana-postgresql-datasource", "uid": "oura-pg" },
-          "rawSql": "SELECT vascular_age FROM daily_cardiovascular_age ORDER BY day DESC LIMIT 1",
+          "rawSql": "SELECT vascular_age FROM daily_cardiovascular_age WHERE day <= ($__timeTo()::timestamptz)::date ORDER BY day DESC LIMIT 1",
           "format": "table",
           "refId": "A"
         }
@@ -698,7 +698,7 @@
           "color": {
             "mode": "thresholds"
           },
-          "unit": "suffix: yrs",
+          "unit": "suffix:yrs",
           "thresholds": {
             "mode": "absolute",
             "steps": [

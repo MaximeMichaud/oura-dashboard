@@ -22,8 +22,9 @@ groups:
               rawSql: |
                 SELECT
                   now() AS time,
-                  EXTRACT(EPOCH FROM (now() - MIN(updated_at)))/3600 AS hours_stale
+                  EXTRACT(EPOCH FROM (now() - MIN(last_success_at)))/3600 AS hours_stale
                 FROM sync_log
+                WHERE last_success_at IS NOT NULL
               format: table
               intervalMs: 300000
               maxDataPoints: 1

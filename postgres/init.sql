@@ -192,7 +192,7 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_sleep_primary_day ON sleep_primary(day);
 -- CHECK constraints (idempotent via DO block for existing databases)
 DO $$ BEGIN
     ALTER TABLE sleep ADD CONSTRAINT chk_sleep_type
-        CHECK (type IN ('long_sleep', 'late_nap', 'rest', 'sleep', 'nap'));
+        CHECK (type IN ('long_sleep', 'late_nap', 'rest', 'sleep', 'deleted'));
 EXCEPTION WHEN duplicate_object THEN NULL;
 END $$;
 

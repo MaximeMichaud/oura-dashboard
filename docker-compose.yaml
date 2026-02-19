@@ -38,7 +38,7 @@ services:
       interval: 5m
       timeout: 5s
       retries: 3
-      start_period: 2m
+      start_period: 10m
 
   grafana:
     image: grafana/grafana:12.3.3

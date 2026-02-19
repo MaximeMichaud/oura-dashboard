@@ -646,7 +646,7 @@
           "refId": "A",
           "datasource": {"type": "grafana-postgresql-datasource", "uid": "oura-pg"},
           "rawSql": "SELECT day AS time, vo2_max FROM daily_vo2_max WHERE $__timeFilter(day) ORDER BY day",
-          "format": "table"
+          "format": "time_series"
         }
       ]
     },

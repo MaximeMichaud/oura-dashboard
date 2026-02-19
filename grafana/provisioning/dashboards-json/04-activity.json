@@ -45,7 +45,7 @@
         "defaults": {
           "min": 0,
           "max": 1500,
-          "unit": "suffix: kcal",
+          "unit": "kcal",
           "color": {
             "mode": "thresholds"
           },
@@ -612,7 +612,7 @@
             "uid": "oura-pg"
           },
           "rawSql": "SELECT day as time, active_calories as \"Active Cal\", steps as \"Steps\" FROM daily_activity WHERE $__timeFilter(day) ORDER BY day",
-          "format": "table"
+          "format": "time_series"
         }
       ],
       "timeFrom": null,
@@ -743,7 +743,7 @@
               "type": "linear"
             }
           },
-          "unit": "short",
+          "unit": "kcal",
           "thresholds": {
             "mode": "absolute",
             "steps": [
@@ -1178,7 +1178,7 @@
             "scaleDistribution": { "type": "linear" },
             "barWidthFactor": 0.8
           },
-          "unit": "short",
+          "unit": "kcal",
           "thresholds": {
             "mode": "absolute",
             "steps": [{ "value": null, "color": "#FF7F0E" }]

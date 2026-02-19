@@ -59,7 +59,7 @@ class OuraClient:
     def _get(self, url: str, params: dict) -> requests.Response:
         resp = self.session.get(url, params=params, timeout=30)
         if resp.status_code == 429:
-            retry_after = int(resp.headers.get("Retry-After", "60"))
+            retry_after = int(float(resp.headers.get("Retry-After", "60")))
             log.warning("Rate limited (429), retry after %ds", retry_after)
             raise RateLimitError(retry_after)
         resp.raise_for_status()

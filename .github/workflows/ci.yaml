@@ -81,6 +81,7 @@ jobs:
 
   build:
     name: Build
+    needs: [lint, test]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
@@ -93,6 +94,7 @@ jobs:
 
   integration:
     name: Integration
+    needs: [build]
     runs-on: ubuntu-latest
     services:
       postgres:
@@ -154,10 +156,12 @@ jobs:
           for i in $(seq 1 30); do
             if curl -sf http://localhost:3000/api/health > /dev/null 2>&1; then
               echo "Grafana ready"
-              break
+              exit 0
             fi
             sleep 2
           done
+          echo "Grafana did not become ready in time"
+          exit 1
 
       - name: Verify dashboards loaded
         run: |

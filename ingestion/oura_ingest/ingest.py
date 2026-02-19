@@ -58,7 +58,13 @@ def _upsert_batch(engine: Engine, table: str, pk: str, rows: list[dict]) -> int:
 
     table = _validate_ident(table)
     pk = _validate_ident(pk)
-    cols = [_validate_ident(c) for c in rows[0].keys()]
+    # Union of all keys across rows to handle optional fields
+    all_keys: set[str] = set()
+    for r in rows:
+        all_keys.update(r.keys())
+    cols = sorted(_validate_ident(c) for c in all_keys)
+    # Normalise rows so every row has every key
+    rows = [{c: r.get(c) for c in cols} for r in rows]
 
     non_pk_cols = [c for c in cols if c != pk]
     if not non_pk_cols:
@@ -166,10 +172,7 @@ def sync_endpoint(engine: Engine, client: OuraClient, ep) -> int:
 
     duration = time.monotonic() - t0
 
-    if count > 0:
-        _update_sync_log(engine, ep.name, count)
-    else:
-        log.info("[%s] No records upserted, sync_log not advanced", ep.name)
+    _update_sync_log(engine, ep.name, count)
 
     _record_sync_history(engine, ep.name, count, duration, "success")
     log.info("[%s] Upserted %d records in %.1fs", ep.name, count, duration)
@@ -206,9 +209,9 @@ def sync_all(engine: Engine, client: OuraClient, only_endpoint: str | None = Non
                 _record_sync_history(engine, ep.name, 0, 0, "error", str(e))
                 log.error("[%s] Sync failed", ep.name, exc_info=True)
 
-        # Refresh materialized view after sync
+        # Refresh materialized view after sync (CONCURRENTLY cannot run inside a transaction)
         try:
-            with engine.begin() as conn:
+            with engine.connect().execution_options(isolation_level="AUTOCOMMIT") as conn:
                 conn.execute(text("REFRESH MATERIALIZED VIEW CONCURRENTLY sleep_primary"))
             log.info("Refreshed materialized view sleep_primary")
         except Exception:
