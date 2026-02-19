@@ -180,6 +180,15 @@ CREATE TABLE IF NOT EXISTS sync_history (
 );
 CREATE INDEX IF NOT EXISTS idx_sync_history_endpoint_time ON sync_history(endpoint, synced_at DESC);
 
+-- Materialized view: one row per day with the primary (longest) sleep session
+CREATE MATERIALIZED VIEW IF NOT EXISTS sleep_primary AS
+SELECT DISTINCT ON (day) *
+FROM sleep
+WHERE type = 'long_sleep'
+ORDER BY day, total_sleep DESC;
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_sleep_primary_day ON sleep_primary(day);
+
 -- CHECK constraints (idempotent via DO block for existing databases)
 DO $$ BEGIN
     ALTER TABLE sleep ADD CONSTRAINT chk_sleep_type

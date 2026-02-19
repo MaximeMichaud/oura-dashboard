@@ -17,7 +17,7 @@ def wait_for_db(retries: int = 30, delay: float = 2.0) -> Engine:
                 conn.execute(text("SELECT 1"))
             log.info("Database ready")
             return engine
-        except Exception:
-            log.info("Waiting for database... (%d/%d)", attempt, retries)
+        except Exception as e:
+            log.warning("Waiting for database... (%d/%d) %s: %s", attempt, retries, type(e).__name__, e)
             time.sleep(delay)
     raise RuntimeError("Database not available after %d retries" % retries)

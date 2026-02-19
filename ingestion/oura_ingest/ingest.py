@@ -168,4 +168,12 @@ def sync_all(engine: Engine, client: OuraClient):
             _record_sync_failure(engine, ep.name, str(e))
             _record_sync_history(engine, ep.name, 0, 0, "error", str(e))
             log.error("[%s] Sync failed", ep.name, exc_info=True)
+    # Refresh materialized view after sync
+    try:
+        with engine.begin() as conn:
+            conn.execute(text("REFRESH MATERIALIZED VIEW CONCURRENTLY sleep_primary"))
+        log.info("Refreshed materialized view sleep_primary")
+    except Exception:
+        log.warning("Could not refresh sleep_primary view", exc_info=True)
+
     log.info("Sync complete - %d total records", total)
