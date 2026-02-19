@@ -142,14 +142,14 @@ class TestSyncEndpointTransformErrors:
         conn.execute.return_value.fetchone.return_value = None
 
         with (
-            patch("oura_ingest.ingest._upsert", return_value=2) as mock_upsert,
+            patch("oura_ingest.ingest._upsert_batch", return_value=2) as mock_upsert,
             patch("oura_ingest.ingest._update_sync_log"),
             patch("oura_ingest.ingest._record_sync_history"),
             caplog.at_level("WARNING"),
         ):
             sync_endpoint(mock_engine, mock_client, ep)
 
-        # _upsert called with 2 good records (bad one skipped)
+        # _upsert_batch called with 2 good records (bad one skipped)
         assert mock_upsert.call_count == 1
         upsert_rows = mock_upsert.call_args[0][3]
         assert len(upsert_rows) == 2

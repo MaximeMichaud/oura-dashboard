@@ -1,7 +1,10 @@
+import itertools
 import logging
 import re
+import threading
 import time
 from datetime import date, timedelta
+from pathlib import Path
 
 import requests
 from sqlalchemy import text
@@ -21,6 +24,9 @@ class TokenExpiredError(Exception):
 log = logging.getLogger(__name__)
 
 BATCH_SIZE = 500
+
+_sync_lock = threading.Lock()
+_SENTINEL_PATH = Path("/tmp/oura-last-sync")
 
 # Only allow safe SQL identifiers (lowercase letters, digits, underscores)
 _SAFE_IDENT = re.compile(r"^[a-z_][a-z0-9_]*$")
@@ -123,22 +129,41 @@ def _record_sync_history(
         conn.execute(text(sql), {"ep": endpoint_name, "cnt": count, "dur": duration, "status": status, "err": error})
 
 
+def _chunked(iterable, n):
+    """Yield successive chunks of size n from iterable."""
+    it = iter(iterable)
+    while chunk := list(itertools.islice(it, n)):
+        yield chunk
+
+
+def _transform_stream(ep, records):
+    """Apply transform, skip and log bad records."""
+    for rec in records:
+        try:
+            yield ep.transform(rec)
+        except Exception:
+            rec_id = rec.get("id", rec.get("day", "?"))
+            log.warning("[%s] Transform error for record: %s", ep.name, rec_id, exc_info=True)
+
+
 def sync_endpoint(engine: Engine, client: OuraClient, ep) -> int:
-    """Sync a single endpoint: fetch from API, transform, upsert."""
+    """Sync a single endpoint: fetch from API, transform, upsert in chunks."""
     t0 = time.monotonic()
     start = _get_start_date(engine, ep.name)
     end = date.today().isoformat()
     log.info("[%s] Fetching %s -> %s", ep.name, start, end)
 
-    rows = []
-    for rec in client.fetch_all(ep.api_path, start, end):
-        try:
-            rows.append(ep.transform(rec))
-        except Exception:
-            rec_id = rec.get("id", rec.get("day", "?"))
-            log.warning("[%s] Transform error for record: %s", ep.name, rec_id, exc_info=True)
+    # Staleness gap warning
+    gap_days = (date.today() - date.fromisoformat(start)).days
+    if gap_days > 3:
+        log.warning("[%s] Sync gap: %d days behind", ep.name, gap_days)
 
-    count = _upsert(engine, ep.table, ep.pk, rows)
+    # Stream and upsert in chunks instead of buffering all in RAM
+    count = 0
+    stream = _transform_stream(ep, client.fetch_all(ep.api_path, start, end))
+    for batch in _chunked(stream, BATCH_SIZE):
+        count += _upsert_batch(engine, ep.table, ep.pk, batch)
+
     duration = time.monotonic() - t0
 
     if count > 0:
@@ -151,29 +176,50 @@ def sync_endpoint(engine: Engine, client: OuraClient, ep) -> int:
     return count
 
 
-def sync_all(engine: Engine, client: OuraClient):
-    """Sync all endpoints."""
-    total = 0
-    for ep in ALL_ENDPOINTS:
-        try:
-            total += sync_endpoint(engine, client, ep)
-        except requests.HTTPError as e:
-            if e.response is not None and e.response.status_code == 401:
-                log.critical("Oura API token is invalid or expired (401). Stopping all syncs.")
-                raise TokenExpiredError("Oura API token is invalid or expired") from e
-            _record_sync_failure(engine, ep.name, str(e))
-            _record_sync_history(engine, ep.name, 0, 0, "error", str(e))
-            log.error("[%s] Sync failed", ep.name, exc_info=True)
-        except Exception as e:
-            _record_sync_failure(engine, ep.name, str(e))
-            _record_sync_history(engine, ep.name, 0, 0, "error", str(e))
-            log.error("[%s] Sync failed", ep.name, exc_info=True)
-    # Refresh materialized view after sync
-    try:
-        with engine.begin() as conn:
-            conn.execute(text("REFRESH MATERIALIZED VIEW CONCURRENTLY sleep_primary"))
-        log.info("Refreshed materialized view sleep_primary")
-    except Exception:
-        log.warning("Could not refresh sleep_primary view", exc_info=True)
+def sync_all(engine: Engine, client: OuraClient, only_endpoint: str | None = None):
+    """Sync all (or one) endpoints with overlap guard."""
+    if not _sync_lock.acquire(blocking=False):
+        log.warning("Sync already in progress, skipping this run")
+        return
 
-    log.info("Sync complete - %d total records", total)
+    try:
+        endpoints = ALL_ENDPOINTS
+        if only_endpoint:
+            endpoints = [ep for ep in ALL_ENDPOINTS if ep.name == only_endpoint]
+            if not endpoints:
+                log.error("Unknown endpoint: %s", only_endpoint)
+                return
+
+        total = 0
+        for ep in endpoints:
+            try:
+                total += sync_endpoint(engine, client, ep)
+            except requests.HTTPError as e:
+                if e.response is not None and e.response.status_code == 401:
+                    log.critical("Oura API token is invalid or expired (401). Stopping all syncs.")
+                    raise TokenExpiredError("Oura API token is invalid or expired") from e
+                _record_sync_failure(engine, ep.name, str(e))
+                _record_sync_history(engine, ep.name, 0, 0, "error", str(e))
+                log.error("[%s] Sync failed", ep.name, exc_info=True)
+            except Exception as e:
+                _record_sync_failure(engine, ep.name, str(e))
+                _record_sync_history(engine, ep.name, 0, 0, "error", str(e))
+                log.error("[%s] Sync failed", ep.name, exc_info=True)
+
+        # Refresh materialized view after sync
+        try:
+            with engine.begin() as conn:
+                conn.execute(text("REFRESH MATERIALIZED VIEW CONCURRENTLY sleep_primary"))
+            log.info("Refreshed materialized view sleep_primary")
+        except Exception:
+            log.warning("Could not refresh sleep_primary view", exc_info=True)
+
+        # Write sentinel file for healthcheck
+        try:
+            _SENTINEL_PATH.touch()
+        except OSError:
+            log.debug("Could not write sentinel file %s", _SENTINEL_PATH)
+
+        log.info("Sync complete - %d total records", total)
+    finally:
+        _sync_lock.release()
