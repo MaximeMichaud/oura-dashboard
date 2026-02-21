@@ -2,7 +2,7 @@
 import os
 import streamlit as st
 from datetime import date, timedelta
-from zoneinfo import ZoneInfo, available_timezones
+from zoneinfo import available_timezones
 
 from data.providers import get_provider, show_provider_sidebar
 
@@ -23,13 +23,17 @@ _COMMON_TIMEZONES = [
     "Pacific/Auckland", "Pacific/Honolulu", "UTC",
 ]
 
+# Build full timezone list once (common first, then all others)
+_ALL_ZONES = sorted(available_timezones())
+_TZ_OPTIONS = _COMMON_TIMEZONES + [z for z in _ALL_ZONES if z not in _COMMON_TIMEZONES]
+
 
 def render_sidebar():
     """Render the shared sidebar on every page."""
     st.sidebar.title("Oura Dashboard")
     st.sidebar.markdown("---")
 
-    # Time range picker
+    # Time range picker - use key for cross-page persistence
     presets = {
         "Last 7 days": 7,
         "Last 30 days": 30,
@@ -37,24 +41,32 @@ def render_sidebar():
         "Last 6 months": 180,
         "Last year": 365,
     }
-    preset = st.sidebar.selectbox("Time Range", list(presets.keys()), index=1)
+    preset_keys = list(presets.keys())
+
+    if "time_range" not in st.session_state:
+        st.session_state["time_range"] = preset_keys[1]  # "Last 30 days"
+
+    preset = st.sidebar.selectbox("Time Range", preset_keys, key="time_range")
     end_date = date.today()
     start_date = end_date - timedelta(days=presets[preset])
     st.session_state["start_date"] = start_date
     st.session_state["end_date"] = end_date
 
-    # Timezone picker
-    all_zones = sorted(available_timezones())
-    # Build list: common first, then all others
-    other_zones = [z for z in all_zones if z not in _COMMON_TIMEZONES]
-    tz_options = _COMMON_TIMEZONES + other_zones
+    # Timezone picker - restore from query_params on F5, persist via key
+    params = st.query_params
+    if "user_timezone" not in st.session_state:
+        initial_tz = params.get("tz", _DEFAULT_TZ)
+        st.session_state["user_timezone"] = (
+            initial_tz if initial_tz in _TZ_OPTIONS else _DEFAULT_TZ
+        )
 
-    default_idx = 0
-    if _DEFAULT_TZ in tz_options:
-        default_idx = tz_options.index(_DEFAULT_TZ)
+    st.sidebar.selectbox("Timezone", _TZ_OPTIONS, key="user_timezone")
 
-    selected_tz = st.sidebar.selectbox("Timezone", tz_options, index=default_idx)
-    st.session_state["user_timezone"] = selected_tz
+    # Persist timezone to URL so it survives F5
+    if st.session_state["user_timezone"] != _DEFAULT_TZ:
+        params["tz"] = st.session_state["user_timezone"]
+    elif "tz" in params:
+        del params["tz"]
 
     st.sidebar.markdown("---")
 
