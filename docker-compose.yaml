@@ -66,6 +66,28 @@ services:
       retries: 6
       start_period: 30s
 
+  streamlit:
+    build: ./streamlit
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "${STREAMLIT_PORT:-8501}:8501"
+    environment:
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: ${POSTGRES_DB:-oura}
+      POSTGRES_USER: ${POSTGRES_USER:-oura}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-oura}
+      USER_TIMEZONE: ${USER_TIMEZONE:-America/Toronto}
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8501/_stcore/health')\""]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+
 volumes:
   pgdata:
   grafana-storage:
