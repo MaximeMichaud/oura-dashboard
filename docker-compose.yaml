@@ -19,12 +19,13 @@ services:
 
   ingestion:
     build: ./ingestion
+    profiles: ["ingestion"]
     restart: unless-stopped
     depends_on:
       postgres:
         condition: service_healthy
     environment:
-      OURA_TOKEN: ${OURA_TOKEN}
+      OURA_TOKEN: ${OURA_TOKEN:-}
       POSTGRES_HOST: postgres
       POSTGRES_PORT: 5432
       POSTGRES_DB: ${POSTGRES_DB:-oura}
@@ -80,6 +81,7 @@ services:
       POSTGRES_DB: ${POSTGRES_DB:-oura}
       POSTGRES_USER: ${POSTGRES_USER:-oura}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-oura}
+      OURA_TOKEN: ${OURA_TOKEN:-}
       USER_TIMEZONE: ${USER_TIMEZONE:-America/Toronto}
     healthcheck:
       test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8501/_stcore/health')\""]

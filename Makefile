@@ -1,7 +1,10 @@
-.PHONY: up down logs status psql
+.PHONY: up up-full down logs status psql
 
 up:
 	docker compose up -d --build
+
+up-full:
+	docker compose --profile ingestion up -d --build
 
 down:
 	docker compose down
