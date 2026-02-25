@@ -1,18 +1,30 @@
 """Overview dashboard - scores, steps, stress, resilience, weekly trends."""
-import streamlit as st
+
 from datetime import date, timedelta
 
+from components.charts import bar_chart, dual_axis_chart, horizontal_bar, line_chart, stacked_area
+from components.metrics import gauge_chart, stat_card, stat_card_mapped
+from components.theme import (
+    BLUE,
+    CARDIO_AGE_THRESHOLDS,
+    CYAN,
+    GREEN,
+    ORANGE,
+    PURPLE,
+    RED,
+    RESILIENCE_MAP,
+    SCORE_THRESHOLDS,
+    SPO2_THRESHOLDS,
+    STRESS_MAP,
+)
 from data.providers import get_provider
-from components.metrics import stat_card, stat_card_mapped, gauge_chart
-from components.charts import (line_chart, dual_axis_chart, bar_chart,
-                                stacked_area, horizontal_bar)
-from components.theme import (SCORE_THRESHOLDS, SPO2_THRESHOLDS, CARDIO_AGE_THRESHOLDS,
-                               STRESS_MAP, RESILIENCE_MAP, BLUE, GREEN, ORANGE,
-                               RED, PURPLE, CYAN)
+
+import streamlit as st
 
 st.set_page_config(page_title="Oura - Overview", layout="wide", page_icon=":ring:")
 
-from components.sidebar import render_sidebar
+from components.sidebar import render_sidebar  # noqa: E402
+
 render_sidebar()
 
 st.title("Overview")
@@ -47,7 +59,8 @@ with col_left:
     trend_df = provider.scores_trend(start, end)
     if not trend_df.empty:
         fig = dual_axis_chart(
-            trend_df, "day",
+            trend_df,
+            "day",
             left_cols=["sleep_score", "readiness_score"],
             right_cols=["steps"],
             left_colors=[BLUE, GREEN],
@@ -63,7 +76,8 @@ with col_right:
     breakdown_df = provider.sleep_duration_breakdown(start, end)
     if not breakdown_df.empty:
         fig = stacked_area(
-            breakdown_df, "day",
+            breakdown_df,
+            "day",
             y_cols=["deep", "light", "rem", "awake"],
             colors=[BLUE, "#7EB2DD", PURPLE, RED],
             title="Sleep Duration Breakdown (hours)",
@@ -79,8 +93,7 @@ with c1:
         row = contrib_df.iloc[0]
         names = list(row.index)
         values = [row[n] for n in names]
-        fig = horizontal_bar(names, values, thresholds=SCORE_THRESHOLDS,
-                             title="Sleep Contributors")
+        fig = horizontal_bar(names, values, thresholds=SCORE_THRESHOLDS, title="Sleep Contributors")
         st.plotly_chart(fig, width="stretch")
 
 with c2:
@@ -91,9 +104,14 @@ with c2:
 
 with c3:
     stat_card("SpO2", scores.get("spo2"), unit="%", thresholds=SPO2_THRESHOLDS)
-    gauge_chart(scores.get("cardio_age"), min_val=15, max_val=80,
-                title="Cardiovascular Age",
-                thresholds=CARDIO_AGE_THRESHOLDS, unit=" yrs")
+    gauge_chart(
+        scores.get("cardio_age"),
+        min_val=15,
+        max_val=80,
+        title="Cardiovascular Age",
+        thresholds=CARDIO_AGE_THRESHOLDS,
+        unit=" yrs",
+    )
 
 # -- Row 4: SpO2 Trend + HRV vs Readiness --
 col_left, col_right = st.columns(2)
@@ -101,18 +119,21 @@ col_left, col_right = st.columns(2)
 with col_left:
     spo2_df = provider.spo2_trend(start, end)
     if not spo2_df.empty:
-        fig = line_chart(spo2_df, "day", "spo2", colors=[CYAN],
-                         title="SpO2 Trend", y_label="%", fill=True)
+        fig = line_chart(spo2_df, "day", "spo2", colors=[CYAN], title="SpO2 Trend", y_label="%", fill=True)
         st.plotly_chart(fig, width="stretch")
 
 with col_right:
     hrv_read_df = provider.hrv_vs_readiness(start, end)
     if not hrv_read_df.empty:
         fig = dual_axis_chart(
-            hrv_read_df, "day",
-            left_cols=["hrv"], right_cols=["readiness"],
-            left_colors=[BLUE], right_colors=[GREEN],
-            left_label="HRV (ms)", right_label="Readiness Score",
+            hrv_read_df,
+            "day",
+            left_cols=["hrv"],
+            right_cols=["readiness"],
+            left_colors=[BLUE],
+            right_colors=[GREEN],
+            left_label="HRV (ms)",
+            right_label="Readiness Score",
             title="HRV vs Next-Day Readiness",
         )
         st.plotly_chart(fig, width="stretch")

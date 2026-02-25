@@ -1,7 +1,8 @@
 """Stat cards and gauge components matching Grafana panels."""
-import streamlit as st
+
 import plotly.graph_objects as go
 
+import streamlit as st
 from components.theme import get_threshold_color, hex_to_rgba
 
 
@@ -20,13 +21,16 @@ def stat_card(title, value, unit="", color=None, thresholds=None, fmt=None):
     else:
         display = f"{value:,}" if isinstance(value, int) else str(value)
 
-    st.markdown(f"""
+    st.markdown(
+        f"""
     <div style="background:rgba(255,255,255,0.05); border-radius:8px; padding:16px;
                 text-align:center; border-left:4px solid {color}; margin-bottom:8px;">
         <div style="font-size:0.8rem; color:#999; margin-bottom:4px;">{title}</div>
         <div style="font-size:1.8rem; font-weight:bold; color:{color};">{display}{unit}</div>
     </div>
-    """, unsafe_allow_html=True)
+    """,
+        unsafe_allow_html=True,
+    )
 
 
 def stat_card_mapped(title, raw_value, mapping):
@@ -36,25 +40,31 @@ def stat_card_mapped(title, raw_value, mapping):
     else:
         label, color = "N/A", "#888888"
 
-    st.markdown(f"""
+    st.markdown(
+        f"""
     <div style="background:rgba(255,255,255,0.05); border-radius:8px; padding:16px;
                 text-align:center; border-left:4px solid {color}; margin-bottom:8px;">
         <div style="font-size:0.8rem; color:#999; margin-bottom:4px;">{title}</div>
         <div style="font-size:1.8rem; font-weight:bold; color:{color};">{label}</div>
     </div>
-    """, unsafe_allow_html=True)
+    """,
+        unsafe_allow_html=True,
+    )
 
 
 def gauge_chart(value, min_val=0, max_val=100, title="", thresholds=None, unit=""):
     """Plotly gauge indicator matching Grafana gauge panels."""
     if value is None:
-        st.markdown(f"""
+        st.markdown(
+            f"""
         <div style="background:rgba(255,255,255,0.05); border-radius:8px; padding:16px;
                     text-align:center; margin-bottom:8px;">
             <div style="font-size:0.8rem; color:#999; margin-bottom:4px;">{title}</div>
             <div style="font-size:1.8rem; font-weight:bold; color:#888;">N/A</div>
         </div>
-        """, unsafe_allow_html=True)
+        """,
+            unsafe_allow_html=True,
+        )
         return
 
     steps = []
@@ -65,21 +75,23 @@ def gauge_chart(value, min_val=0, max_val=100, title="", thresholds=None, unit="
 
     bar_color = get_threshold_color(value, thresholds) if thresholds else "#1F77B4"
 
-    fig = go.Figure(go.Indicator(
-        mode="gauge+number",
-        value=value,
-        number={"suffix": unit, "font": {"size": 28}},
-        gauge={
-            "axis": {"range": [min_val, max_val], "tickwidth": 1},
-            "bar": {"color": bar_color, "thickness": 0.7},
-            "steps": steps,
-            "threshold": {
-                "line": {"color": "white", "width": 2},
-                "thickness": 0.8,
-                "value": value,
+    fig = go.Figure(
+        go.Indicator(
+            mode="gauge+number",
+            value=value,
+            number={"suffix": unit, "font": {"size": 28}},
+            gauge={
+                "axis": {"range": [min_val, max_val], "tickwidth": 1},
+                "bar": {"color": bar_color, "thickness": 0.7},
+                "steps": steps,
+                "threshold": {
+                    "line": {"color": "white", "width": 2},
+                    "thickness": 0.8,
+                    "value": value,
+                },
             },
-        },
-    ))
+        )
+    )
     fig.update_layout(
         height=200,
         margin={"t": 30, "b": 0, "l": 30, "r": 30},

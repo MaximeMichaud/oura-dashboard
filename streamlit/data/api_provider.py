@@ -1,4 +1,5 @@
 """API data provider - calls Oura API v2 directly (for Streamlit Cloud)."""
+
 from __future__ import annotations
 
 from datetime import date, timedelta
@@ -6,6 +7,7 @@ from typing import Any
 
 import pandas as pd
 import requests
+
 import streamlit as st
 
 
@@ -18,8 +20,7 @@ class ApiProvider:
         self._token = token
         self._headers = {"Authorization": f"Bearer {token}"}
 
-    def _fetch(self, endpoint: str, start: date | None = None,
-               end: date | None = None) -> list[dict]:
+    def _fetch(self, endpoint: str, start: date | None = None, end: date | None = None) -> list[dict]:
         """Fetch all pages from an Oura API endpoint."""
         import time
 
@@ -128,8 +129,16 @@ class ApiProvider:
         readiness = self._fetch_cached("daily_readiness", start, end)
         activity = self._fetch_cached("daily_activity", start, end)
 
-        sleep_df = pd.DataFrame(sleep)[["day", "score"]].rename(columns={"score": "sleep_score"}) if sleep else pd.DataFrame(columns=["day", "sleep_score"])
-        read_df = pd.DataFrame(readiness)[["day", "score"]].rename(columns={"score": "readiness_score"}) if readiness else pd.DataFrame(columns=["day", "readiness_score"])
+        sleep_df = (
+            pd.DataFrame(sleep)[["day", "score"]].rename(columns={"score": "sleep_score"})
+            if sleep
+            else pd.DataFrame(columns=["day", "sleep_score"])
+        )
+        read_df = (
+            pd.DataFrame(readiness)[["day", "score"]].rename(columns={"score": "readiness_score"})
+            if readiness
+            else pd.DataFrame(columns=["day", "readiness_score"])
+        )
         act_df = pd.DataFrame(activity)[["day", "steps"]] if activity else pd.DataFrame(columns=["day", "steps"])
 
         df = sleep_df.merge(read_df, on="day", how="outer").merge(act_df, on="day", how="outer")
@@ -143,20 +152,22 @@ class ApiProvider:
         # Sort by total_sleep desc to keep primary sleep per day
         sorted_data = sorted(
             [d for d in data if d.get("type") == "long_sleep"],
-            key=lambda d: (d.get("day", ""), -(d.get("total_sleep_duration") or 0))
+            key=lambda d: (d.get("day", ""), -(d.get("total_sleep_duration") or 0)),
         )
         for d in sorted_data:
             day = d.get("day")
             if day in seen_days:
                 continue
             seen_days.add(day)
-            records.append({
-                "day": day,
-                "deep": (d.get("deep_sleep_duration") or 0) / 3600.0,
-                "light": (d.get("light_sleep_duration") or 0) / 3600.0,
-                "rem": (d.get("rem_sleep_duration") or 0) / 3600.0,
-                "awake": (d.get("awake_time") or 0) / 3600.0,
-            })
+            records.append(
+                {
+                    "day": day,
+                    "deep": (d.get("deep_sleep_duration") or 0) / 3600.0,
+                    "light": (d.get("light_sleep_duration") or 0) / 3600.0,
+                    "rem": (d.get("rem_sleep_duration") or 0) / 3600.0,
+                    "awake": (d.get("awake_time") or 0) / 3600.0,
+                }
+            )
         df = pd.DataFrame(records)
         if not df.empty:
             df["day"] = pd.to_datetime(df["day"])
@@ -169,15 +180,19 @@ class ApiProvider:
             return pd.DataFrame()
         last = data[-1]
         c = last.get("contributors", {})
-        return pd.DataFrame([{
-            "Deep Sleep": c.get("deep_sleep"),
-            "Efficiency": c.get("efficiency"),
-            "Latency": c.get("latency"),
-            "REM Sleep": c.get("rem_sleep"),
-            "Restfulness": c.get("restfulness"),
-            "Timing": c.get("timing"),
-            "Total Sleep": c.get("total_sleep"),
-        }])
+        return pd.DataFrame(
+            [
+                {
+                    "Deep Sleep": c.get("deep_sleep"),
+                    "Efficiency": c.get("efficiency"),
+                    "Latency": c.get("latency"),
+                    "REM Sleep": c.get("rem_sleep"),
+                    "Restfulness": c.get("restfulness"),
+                    "Timing": c.get("timing"),
+                    "Total Sleep": c.get("total_sleep"),
+                }
+            ]
+        )
 
     def steps_30d(self, end_date: date) -> pd.DataFrame:
         start = end_date - timedelta(days=30)
@@ -347,16 +362,18 @@ class ApiProvider:
         records = []
         for d in data:
             c = d.get("contributors", {})
-            records.append({
-                "Date": d["day"],
-                "Deep Sleep": c.get("deep_sleep"),
-                "Efficiency": c.get("efficiency"),
-                "Latency": c.get("latency"),
-                "REM Sleep": c.get("rem_sleep"),
-                "Restfulness": c.get("restfulness"),
-                "Timing": c.get("timing"),
-                "Total Sleep": c.get("total_sleep"),
-            })
+            records.append(
+                {
+                    "Date": d["day"],
+                    "Deep Sleep": c.get("deep_sleep"),
+                    "Efficiency": c.get("efficiency"),
+                    "Latency": c.get("latency"),
+                    "REM Sleep": c.get("rem_sleep"),
+                    "Restfulness": c.get("restfulness"),
+                    "Timing": c.get("timing"),
+                    "Total Sleep": c.get("total_sleep"),
+                }
+            )
         return pd.DataFrame(records).sort_values("Date", ascending=False) if records else pd.DataFrame()
 
     def sleep_latency_trend(self, start: date, end: date) -> pd.DataFrame:
@@ -444,14 +461,16 @@ class ApiProvider:
         records = []
         for d in data:
             c = d.get("contributors", {})
-            records.append({
-                "day": d["day"],
-                "HRV Balance": c.get("hrv_balance"),
-                "Sleep Balance": c.get("sleep_balance"),
-                "Recovery Index": c.get("recovery_index"),
-                "Resting HR": c.get("resting_heart_rate"),
-                "Sleep Regularity": c.get("sleep_regularity"),
-            })
+            records.append(
+                {
+                    "day": d["day"],
+                    "HRV Balance": c.get("hrv_balance"),
+                    "Sleep Balance": c.get("sleep_balance"),
+                    "Recovery Index": c.get("recovery_index"),
+                    "Resting HR": c.get("resting_heart_rate"),
+                    "Sleep Regularity": c.get("sleep_regularity"),
+                }
+            )
         df = pd.DataFrame(records)
         if not df.empty:
             df["day"] = pd.to_datetime(df["day"])
@@ -503,17 +522,19 @@ class ApiProvider:
             return pd.DataFrame()
         records = []
         for d in data:
-            records.append({
-                "day": d["day"],
-                "active_calories": d.get("active_calories"),
-                "total_calories": d.get("total_calories"),
-                "steps": d.get("steps"),
-                "score": d.get("score") if d.get("score") else None,
-                "distance_km": (d.get("equivalent_walking_distance") or 0) / 1000.0,
-                "met": d.get("average_met_minutes"),
-                "target_calories": d.get("target_calories"),
-                "target_meters": d.get("target_meters"),
-            })
+            records.append(
+                {
+                    "day": d["day"],
+                    "active_calories": d.get("active_calories"),
+                    "total_calories": d.get("total_calories"),
+                    "steps": d.get("steps"),
+                    "score": d.get("score") if d.get("score") else None,
+                    "distance_km": (d.get("equivalent_walking_distance") or 0) / 1000.0,
+                    "met": d.get("average_met_minutes"),
+                    "target_calories": d.get("target_calories"),
+                    "target_meters": d.get("target_meters"),
+                }
+            )
         df = pd.DataFrame(records)
         df["day"] = pd.to_datetime(df["day"])
         return df.sort_values("day")
@@ -521,7 +542,18 @@ class ApiProvider:
     def workouts(self, start: date, end: date) -> pd.DataFrame:
         data = self._fetch_cached("workout", start, end)
         if not data:
-            return pd.DataFrame(columns=["day", "activity", "calories", "distance", "start_datetime", "end_datetime", "intensity", "source"])
+            return pd.DataFrame(
+                columns=[
+                    "day",
+                    "activity",
+                    "calories",
+                    "distance",
+                    "start_datetime",
+                    "end_datetime",
+                    "intensity",
+                    "source",
+                ]
+            )
         df = pd.DataFrame(data)
         return df.sort_values("day", ascending=False) if not df.empty else df
 
@@ -541,8 +573,14 @@ class ApiProvider:
 
     def stress_trend(self, start: date, end: date) -> pd.DataFrame:
         data = self._fetch_cached("daily_stress", start, end)
-        records = [{"day": d["day"], "stress_h": (d.get("stress_high") or 0) / 3600.0,
-                     "recovery_h": (d.get("recovery_high") or 0) / 3600.0} for d in data]
+        records = [
+            {
+                "day": d["day"],
+                "stress_h": (d.get("stress_high") or 0) / 3600.0,
+                "recovery_h": (d.get("recovery_high") or 0) / 3600.0,
+            }
+            for d in data
+        ]
         df = pd.DataFrame(records)
         if not df.empty:
             df["day"] = pd.to_datetime(df["day"])

@@ -1,8 +1,10 @@
 import os
+
 import pandas as pd
-import streamlit as st
 from sqlalchemy import create_engine, text
 from sqlalchemy.engine import URL
+
+import streamlit as st
 
 
 @st.cache_resource
@@ -14,8 +16,11 @@ def get_engine():
     pw = os.environ.get("POSTGRES_PASSWORD", "oura")
     url = URL.create(
         "postgresql",
-        username=user, password=pw,
-        host=host, port=int(port), database=db,
+        username=user,
+        password=pw,
+        host=host,
+        port=int(port),
+        database=db,
     )
     return create_engine(url, pool_pre_ping=True)
 

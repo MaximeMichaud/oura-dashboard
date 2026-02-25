@@ -1,26 +1,50 @@
 """Shared sidebar - time range picker + timezone + provider status."""
+
 import os
-import streamlit as st
 from datetime import date, timedelta
 from zoneinfo import available_timezones
 
 from data.providers import get_provider, show_provider_sidebar
 
+import streamlit as st
+
 _DEFAULT_TZ = os.environ.get("USER_TIMEZONE", "America/Toronto")
 
 # Common timezones (covers most users without a 400-item dropdown)
 _COMMON_TIMEZONES = [
-    "America/Toronto", "America/New_York", "America/Chicago",
-    "America/Denver", "America/Los_Angeles", "America/Vancouver",
-    "America/Montreal", "America/Halifax", "America/Sao_Paulo",
-    "America/Mexico_City", "Europe/London", "Europe/Paris",
-    "Europe/Berlin", "Europe/Amsterdam", "Europe/Rome",
-    "Europe/Madrid", "Europe/Zurich", "Europe/Brussels",
-    "Europe/Stockholm", "Europe/Helsinki", "Europe/Moscow",
-    "Asia/Tokyo", "Asia/Shanghai", "Asia/Hong_Kong",
-    "Asia/Seoul", "Asia/Kolkata", "Asia/Dubai",
-    "Asia/Singapore", "Australia/Sydney", "Australia/Melbourne",
-    "Pacific/Auckland", "Pacific/Honolulu", "UTC",
+    "America/Toronto",
+    "America/New_York",
+    "America/Chicago",
+    "America/Denver",
+    "America/Los_Angeles",
+    "America/Vancouver",
+    "America/Montreal",
+    "America/Halifax",
+    "America/Sao_Paulo",
+    "America/Mexico_City",
+    "Europe/London",
+    "Europe/Paris",
+    "Europe/Berlin",
+    "Europe/Amsterdam",
+    "Europe/Rome",
+    "Europe/Madrid",
+    "Europe/Zurich",
+    "Europe/Brussels",
+    "Europe/Stockholm",
+    "Europe/Helsinki",
+    "Europe/Moscow",
+    "Asia/Tokyo",
+    "Asia/Shanghai",
+    "Asia/Hong_Kong",
+    "Asia/Seoul",
+    "Asia/Kolkata",
+    "Asia/Dubai",
+    "Asia/Singapore",
+    "Australia/Sydney",
+    "Australia/Melbourne",
+    "Pacific/Auckland",
+    "Pacific/Honolulu",
+    "UTC",
 ]
 
 # Build full timezone list once (common first, then all others)
@@ -56,9 +80,7 @@ def render_sidebar():
     params = st.query_params
     if "user_timezone" not in st.session_state:
         initial_tz = params.get("tz", _DEFAULT_TZ)
-        st.session_state["user_timezone"] = (
-            initial_tz if initial_tz in _TZ_OPTIONS else _DEFAULT_TZ
-        )
+        st.session_state["user_timezone"] = initial_tz if initial_tz in _TZ_OPTIONS else _DEFAULT_TZ
 
     st.sidebar.selectbox("Timezone", _TZ_OPTIONS, key="user_timezone")
 

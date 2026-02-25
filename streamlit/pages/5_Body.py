@@ -1,21 +1,32 @@
 """Body dashboard - SpO2, stress, resilience, cardiovascular age, VO2 Max."""
-import streamlit as st
-import pandas as pd
+
 from datetime import date, timedelta
 
+import pandas as pd
+from components.charts import horizontal_bar, line_chart, stacked_area, state_timeline
+from components.metrics import gauge_chart, stat_card, stat_card_mapped
+from components.theme import (
+    BREATHING_THRESHOLDS,
+    CARDIO_AGE_THRESHOLDS,
+    CYAN,
+    GREEN,
+    ORANGE,
+    PURPLE,
+    RED,
+    RESILIENCE_MAP,
+    RESILIENCE_TIMELINE_COLORS,
+    SPO2_THRESHOLDS,
+    STRESS_MAP,
+    VO2_THRESHOLDS,
+)
 from data.providers import get_provider
-from components.metrics import stat_card, stat_card_mapped, gauge_chart
-from components.charts import (line_chart, horizontal_bar, stacked_area,
-                                state_timeline)
-from components.theme import (SPO2_THRESHOLDS, BREATHING_THRESHOLDS,
-                               CARDIO_AGE_THRESHOLDS, VO2_THRESHOLDS,
-                               STRESS_MAP, RESILIENCE_MAP,
-                               RESILIENCE_TIMELINE_COLORS,
-                               CYAN, RED, GREEN, PURPLE, ORANGE)
+
+import streamlit as st
 
 st.set_page_config(page_title="Oura - Body", layout="wide", page_icon=":ring:")
 
-from components.sidebar import render_sidebar
+from components.sidebar import render_sidebar  # noqa: E402
+
 render_sidebar()
 
 st.title("Body")
@@ -33,13 +44,13 @@ c1, c2, c3 = st.columns([1, 1, 3])
 with c1:
     stat_card("SpO2 Average", spo2_data.get("spo2"), unit="%", thresholds=SPO2_THRESHOLDS)
 with c2:
-    stat_card("Breathing Disturbance", spo2_data.get("bdi"),
-              unit=" events/hr", thresholds=BREATHING_THRESHOLDS, fmt=".1f")
+    stat_card(
+        "Breathing Disturbance", spo2_data.get("bdi"), unit=" events/hr", thresholds=BREATHING_THRESHOLDS, fmt=".1f"
+    )
 with c3:
     spo2_df = provider.spo2_trend(start, end)
     if not spo2_df.empty:
-        fig = line_chart(spo2_df, "day", "spo2", colors=[CYAN],
-                         title="SpO2 Trend", y_label="%", fill=True)
+        fig = line_chart(spo2_df, "day", "spo2", colors=[CYAN], title="SpO2 Trend", y_label="%", fill=True)
         st.plotly_chart(fig, width="stretch")
 
 st.markdown("---")
@@ -62,7 +73,8 @@ with c3:
     fig = horizontal_bar(
         ["Stress", "Recovery"],
         [round(stress_h, 1), round(recovery_h, 1)],
-        fixed_color=None, max_val=16,
+        fixed_color=None,
+        max_val=16,
         title="Stress vs Recovery (hours)",
     )
     if fig:
@@ -74,7 +86,8 @@ with c3:
 stress_trend_df = provider.stress_trend(start, end)
 if not stress_trend_df.empty:
     fig = stacked_area(
-        stress_trend_df, "day",
+        stress_trend_df,
+        "day",
         y_cols=["stress_h", "recovery_h"],
         colors=[RED, GREEN],
         title="Stress vs Recovery Trend (hours)",
@@ -94,8 +107,7 @@ with c1:
     names = [k for k in contrib_keys if k in res_data and res_data[k] is not None]
     vals = [round(res_data[k], 1) for k in names]
     if names:
-        fig = horizontal_bar(names, vals, fixed_color=PURPLE, max_val=100,
-                             title="Resilience Contributors")
+        fig = horizontal_bar(names, vals, fixed_color=PURPLE, max_val=100, title="Resilience Contributors")
         st.plotly_chart(fig, width="stretch")
 
 with c2:
@@ -115,15 +127,16 @@ with c2:
                 current_level = level
                 seg_start = day
         if current_level is not None:
-            segments.append({
-                "start": seg_start,
-                "end": day + pd.Timedelta(days=1),
-                "state": current_level,
-            })
+            segments.append(
+                {
+                    "start": seg_start,
+                    "end": day + pd.Timedelta(days=1),
+                    "state": current_level,
+                }
+            )
         if segments:
             seg_df = pd.DataFrame(segments)
-            fig = state_timeline(seg_df, RESILIENCE_TIMELINE_COLORS,
-                                 title="Resilience Level Timeline")
+            fig = state_timeline(seg_df, RESILIENCE_TIMELINE_COLORS, title="Resilience Level Timeline")
             if fig:
                 st.plotly_chart(fig, width="stretch")
 
@@ -134,15 +147,19 @@ st.subheader("Cardiovascular Age")
 c1, c2 = st.columns([1, 3])
 
 with c1:
-    gauge_chart(scores.get("cardio_age"), min_val=15, max_val=80,
-                title="Cardiovascular Age",
-                thresholds=CARDIO_AGE_THRESHOLDS, unit=" yrs")
+    gauge_chart(
+        scores.get("cardio_age"),
+        min_val=15,
+        max_val=80,
+        title="Cardiovascular Age",
+        thresholds=CARDIO_AGE_THRESHOLDS,
+        unit=" yrs",
+    )
 
 with c2:
     cardio_df = provider.cardio_age_trend(start, end)
     if not cardio_df.empty:
-        fig = line_chart(cardio_df, "day", "vascular_age", colors=[PURPLE],
-                         title="Cardiovascular Age Trend", fill=True)
+        fig = line_chart(cardio_df, "day", "vascular_age", colors=[PURPLE], title="Cardiovascular Age Trend", fill=True)
         st.plotly_chart(fig, width="stretch")
 
 st.markdown("---")

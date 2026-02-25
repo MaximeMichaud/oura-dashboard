@@ -1,4 +1,5 @@
 """Oura Dashboard - Streamlit app entrypoint."""
+
 import streamlit as st
 
 st.set_page_config(
@@ -8,7 +9,8 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
-from components.sidebar import render_sidebar
+from components.sidebar import render_sidebar  # noqa: E402
+
 render_sidebar()
 
 # -- Main page content --

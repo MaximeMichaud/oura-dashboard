@@ -1,4 +1,5 @@
 """Data provider abstraction - auto-detects PostgreSQL, API, or demo mode."""
+
 from __future__ import annotations
 
 import os
@@ -20,6 +21,7 @@ def get_provider():
     if pg_host:
         try:
             from data.postgres_provider import PostgresProvider
+
             provider = PostgresProvider()
             provider.test_connection()
             st.session_state["provider"] = provider
@@ -32,6 +34,7 @@ def get_provider():
     token = os.environ.get("OURA_TOKEN") or st.session_state.get("oura_token")
     if token:
         from data.api_provider import ApiProvider
+
         provider = ApiProvider(token)
         st.session_state["provider"] = provider
         st.session_state["provider_mode"] = "api"
@@ -39,6 +42,7 @@ def get_provider():
 
     # 3. Fallback to demo
     from data.demo_provider import DemoProvider
+
     provider = DemoProvider()
     st.session_state["provider"] = provider
     st.session_state["provider_mode"] = "demo"

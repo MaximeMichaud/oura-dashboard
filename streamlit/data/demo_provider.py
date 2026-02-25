@@ -1,4 +1,5 @@
 """Demo data provider - generates realistic synthetic Oura data."""
+
 from __future__ import annotations
 
 import math
@@ -6,7 +7,6 @@ import random
 from datetime import date, timedelta
 
 import pandas as pd
-import streamlit as st
 
 
 class DemoProvider:
@@ -37,9 +37,10 @@ class DemoProvider:
         data["deep_sleep"] = [int(random.gauss(1.2, 0.3) * 3600) for _ in days]
         data["light_sleep"] = [int(random.gauss(3.5, 0.5) * 3600) for _ in days]
         data["rem_sleep"] = [int(random.gauss(1.8, 0.4) * 3600) for _ in days]
-        data["awake_time"] = [max(0, ts - ds - ls - rs) for ts, ds, ls, rs in
-                              zip(data["total_sleep"], data["deep_sleep"],
-                                  data["light_sleep"], data["rem_sleep"])]
+        data["awake_time"] = [
+            max(0, ts - ds - ls - rs)
+            for ts, ds, ls, rs in zip(data["total_sleep"], data["deep_sleep"], data["light_sleep"], data["rem_sleep"])
+        ]
 
         # HR/HRV
         data["avg_hrv"] = [max(15, round(random.gauss(42, 10), 1)) for _ in days]
@@ -55,7 +56,8 @@ class DemoProvider:
         data["recovery_high"] = [max(0, int(random.gauss(6, 2) * 3600)) for _ in days]
 
         # Resilience
-        data["resilience_level"] = [random.choice(["limited", "adequate", "solid", "solid", "strong", "exceptional"]) for _ in days]
+        resilience_choices = ["limited", "adequate", "solid", "solid", "strong", "exceptional"]
+        data["resilience_level"] = [random.choice(resilience_choices) for _ in days]
         data["res_sleep_recovery"] = [round(random.gauss(65, 15), 1) for _ in days]
         data["res_daytime_recovery"] = [round(random.gauss(60, 18), 1) for _ in days]
         data["res_stress"] = [round(random.gauss(55, 20), 1) for _ in days]
@@ -81,17 +83,38 @@ class DemoProvider:
         data["distance_m"] = [int(s * 0.75) for s in data["steps"]]
 
         # Contributors (all 0-100)
-        for key in ["deep_sleep_c", "efficiency_c", "latency_c", "rem_sleep_c",
-                     "restfulness_c", "timing_c", "total_sleep_c"]:
+        for key in [
+            "deep_sleep_c",
+            "efficiency_c",
+            "latency_c",
+            "rem_sleep_c",
+            "restfulness_c",
+            "timing_c",
+            "total_sleep_c",
+        ]:
             data[key] = [max(0, min(100, int(random.gauss(72, 12)))) for _ in days]
 
-        for key in ["act_balance_c", "body_temp_c", "hrv_balance_c", "prev_day_c",
-                     "prev_night_c", "recovery_idx_c", "resting_hr_c",
-                     "sleep_balance_c", "sleep_reg_c"]:
+        for key in [
+            "act_balance_c",
+            "body_temp_c",
+            "hrv_balance_c",
+            "prev_day_c",
+            "prev_night_c",
+            "recovery_idx_c",
+            "resting_hr_c",
+            "sleep_balance_c",
+            "sleep_reg_c",
+        ]:
             data[key] = [max(0, min(100, int(random.gauss(68, 14)))) for _ in days]
 
-        for key in ["daily_targets_c", "move_hourly_c", "recovery_time_c",
-                     "stay_active_c", "training_freq_c", "training_vol_c"]:
+        for key in [
+            "daily_targets_c",
+            "move_hourly_c",
+            "recovery_time_c",
+            "stay_active_c",
+            "training_freq_c",
+            "training_vol_c",
+        ]:
             data[key] = [max(0, min(100, int(random.gauss(70, 13)))) for _ in days]
 
         data["temp_deviation"] = [round(random.gauss(0, 0.3), 2) for _ in days]
@@ -109,7 +132,7 @@ class DemoProvider:
             base_hrv = data["avg_hrv"][i]
             for j in range(n_intervals):
                 # Cycle through phases roughly
-                cycle_pos = (j % 18)  # ~90 min cycles
+                cycle_pos = j % 18  # ~90 min cycles
                 if cycle_pos < 3:
                     phases.append("4")  # awake/light transition
                 elif cycle_pos < 7:
@@ -175,50 +198,65 @@ class DemoProvider:
     def scores_trend(self, start: date, end: date) -> pd.DataFrame:
         rng = self._range_indices(start, end)
         d = self._data
-        return pd.DataFrame({
-            "day": [d["days"][i] for i in rng],
-            "sleep_score": [d["sleep_score"][i] for i in rng],
-            "readiness_score": [d["readiness_score"][i] for i in rng],
-            "steps": [d["steps"][i] for i in rng],
-        })
+        return pd.DataFrame(
+            {
+                "day": [d["days"][i] for i in rng],
+                "sleep_score": [d["sleep_score"][i] for i in rng],
+                "readiness_score": [d["readiness_score"][i] for i in rng],
+                "steps": [d["steps"][i] for i in rng],
+            }
+        )
 
     def sleep_duration_breakdown(self, start: date, end: date) -> pd.DataFrame:
         rng = self._range_indices(start, end)
         d = self._data
-        return pd.DataFrame({
-            "day": [d["days"][i] for i in rng],
-            "deep": [d["deep_sleep"][i] / 3600.0 for i in rng],
-            "light": [d["light_sleep"][i] / 3600.0 for i in rng],
-            "rem": [d["rem_sleep"][i] / 3600.0 for i in rng],
-            "awake": [d["awake_time"][i] / 3600.0 for i in rng],
-        })
+        return pd.DataFrame(
+            {
+                "day": [d["days"][i] for i in rng],
+                "deep": [d["deep_sleep"][i] / 3600.0 for i in rng],
+                "light": [d["light_sleep"][i] / 3600.0 for i in rng],
+                "rem": [d["rem_sleep"][i] / 3600.0 for i in rng],
+                "awake": [d["awake_time"][i] / 3600.0 for i in rng],
+            }
+        )
 
     def sleep_contributors_latest(self, end_date: date) -> pd.DataFrame:
         i = self._safe_idx(end_date)
         d = self._data
-        return pd.DataFrame([{
-            "Deep Sleep": d["deep_sleep_c"][i], "Efficiency": d["efficiency_c"][i],
-            "Latency": d["latency_c"][i], "REM Sleep": d["rem_sleep_c"][i],
-            "Restfulness": d["restfulness_c"][i], "Timing": d["timing_c"][i],
-            "Total Sleep": d["total_sleep_c"][i],
-        }])
+        return pd.DataFrame(
+            [
+                {
+                    "Deep Sleep": d["deep_sleep_c"][i],
+                    "Efficiency": d["efficiency_c"][i],
+                    "Latency": d["latency_c"][i],
+                    "REM Sleep": d["rem_sleep_c"][i],
+                    "Restfulness": d["restfulness_c"][i],
+                    "Timing": d["timing_c"][i],
+                    "Total Sleep": d["total_sleep_c"][i],
+                }
+            ]
+        )
 
     def steps_30d(self, end_date: date) -> pd.DataFrame:
         start = end_date - timedelta(days=30)
         rng = self._range_indices(start, end_date)
         d = self._data
-        return pd.DataFrame({
-            "day": [d["days"][i] for i in rng],
-            "steps": [d["steps"][i] for i in rng],
-        })
+        return pd.DataFrame(
+            {
+                "day": [d["days"][i] for i in rng],
+                "steps": [d["steps"][i] for i in rng],
+            }
+        )
 
     def spo2_trend(self, start: date, end: date) -> pd.DataFrame:
         rng = self._range_indices(start, end)
         d = self._data
-        return pd.DataFrame({
-            "day": [d["days"][i] for i in rng],
-            "spo2": [d["spo2"][i] for i in rng],
-        })
+        return pd.DataFrame(
+            {
+                "day": [d["days"][i] for i in rng],
+                "spo2": [d["spo2"][i] for i in rng],
+            }
+        )
 
     def hrv_vs_readiness(self, start: date, end: date) -> pd.DataFrame:
         rng = self._range_indices(start, end)
@@ -226,21 +264,22 @@ class DemoProvider:
         records = []
         for i in rng:
             if i > 0:
-                records.append({"day": d["days"][i], "hrv": d["avg_hrv"][i - 1],
-                                "readiness": d["readiness_score"][i]})
+                records.append({"day": d["days"][i], "hrv": d["avg_hrv"][i - 1], "readiness": d["readiness_score"][i]})
         return pd.DataFrame(records)
 
     def weekly_trends(self, start: date, end: date) -> dict[str, pd.DataFrame]:
         rng = self._range_indices(start, end)
         d = self._data
 
-        base = pd.DataFrame({
-            "day": [d["days"][i] for i in rng],
-            "sleep": [d["sleep_score"][i] for i in rng],
-            "readiness": [d["readiness_score"][i] for i in rng],
-            "steps": [d["steps"][i] for i in rng],
-            "hrv": [d["avg_hrv"][i] for i in rng],
-        })
+        base = pd.DataFrame(
+            {
+                "day": [d["days"][i] for i in rng],
+                "sleep": [d["sleep_score"][i] for i in rng],
+                "readiness": [d["readiness_score"][i] for i in rng],
+                "steps": [d["steps"][i] for i in rng],
+                "hrv": [d["avg_hrv"][i] for i in rng],
+            }
+        )
         base["day"] = pd.to_datetime(base["day"])
         base["week"] = base["day"].dt.to_period("W").dt.start_time
 
@@ -252,12 +291,14 @@ class DemoProvider:
         return result
 
     def sync_status(self) -> pd.DataFrame:
-        return pd.DataFrame({
-            "endpoint": ["demo"],
-            "last_sync_date": [date.today()],
-            "updated_at": [pd.Timestamp.now()],
-            "status": ["Demo"],
-        })
+        return pd.DataFrame(
+            {
+                "endpoint": ["demo"],
+                "last_sync_date": [date.today()],
+                "updated_at": [pd.Timestamp.now()],
+                "status": ["Demo"],
+            }
+        )
 
     # ------------------------------------------------------------------
     # Sleep page
@@ -309,61 +350,76 @@ class DemoProvider:
     def sleep_hrv_trend(self, start: date, end: date) -> pd.DataFrame:
         rng = self._range_indices(start, end)
         d = self._data
-        return pd.DataFrame({
-            "day": [d["days"][i] for i in rng],
-            "hrv": [d["avg_hrv"][i] for i in rng],
-        })
+        return pd.DataFrame(
+            {
+                "day": [d["days"][i] for i in rng],
+                "hrv": [d["avg_hrv"][i] for i in rng],
+            }
+        )
 
     def sleep_resting_hr_trend(self, start: date, end: date) -> pd.DataFrame:
         rng = self._range_indices(start, end)
         d = self._data
-        return pd.DataFrame({
-            "day": [d["days"][i] for i in rng],
-            "hr": [d["lowest_hr"][i] for i in rng],
-        })
+        return pd.DataFrame(
+            {
+                "day": [d["days"][i] for i in rng],
+                "hr": [d["lowest_hr"][i] for i in rng],
+            }
+        )
 
     def sleep_efficiency_trend(self, start: date, end: date) -> pd.DataFrame:
         rng = self._range_indices(start, end)
         d = self._data
-        return pd.DataFrame({
-            "day": [d["days"][i] for i in rng],
-            "efficiency": [d["efficiency"][i] for i in rng],
-        })
+        return pd.DataFrame(
+            {
+                "day": [d["days"][i] for i in rng],
+                "efficiency": [d["efficiency"][i] for i in rng],
+            }
+        )
 
     def sleep_contributors_table(self, start: date, end: date) -> pd.DataFrame:
         rng = self._range_indices(start, end)
         d = self._data
         records = []
         for i in reversed(list(rng)):
-            records.append({
-                "Date": str(d["days"][i]),
-                "Deep Sleep": d["deep_sleep_c"][i], "Efficiency": d["efficiency_c"][i],
-                "Latency": d["latency_c"][i], "REM Sleep": d["rem_sleep_c"][i],
-                "Restfulness": d["restfulness_c"][i], "Timing": d["timing_c"][i],
-                "Total Sleep": d["total_sleep_c"][i],
-            })
+            records.append(
+                {
+                    "Date": str(d["days"][i]),
+                    "Deep Sleep": d["deep_sleep_c"][i],
+                    "Efficiency": d["efficiency_c"][i],
+                    "Latency": d["latency_c"][i],
+                    "REM Sleep": d["rem_sleep_c"][i],
+                    "Restfulness": d["restfulness_c"][i],
+                    "Timing": d["timing_c"][i],
+                    "Total Sleep": d["total_sleep_c"][i],
+                }
+            )
         return pd.DataFrame(records)
 
     def sleep_latency_trend(self, start: date, end: date) -> pd.DataFrame:
         rng = self._range_indices(start, end)
         d = self._data
-        return pd.DataFrame({
-            "day": [d["days"][i] for i in rng],
-            "latency_min": [d["latency"][i] / 60.0 for i in rng],
-        })
+        return pd.DataFrame(
+            {
+                "day": [d["days"][i] for i in rng],
+                "latency_min": [d["latency"][i] / 60.0 for i in rng],
+            }
+        )
 
     def sleep_breathing_trend(self, start: date, end: date) -> pd.DataFrame:
         rng = self._range_indices(start, end)
         d = self._data
-        return pd.DataFrame({
-            "day": [d["days"][i] for i in rng],
-            "breath": [d["avg_breath"][i] for i in rng],
-        })
+        return pd.DataFrame(
+            {
+                "day": [d["days"][i] for i in rng],
+                "breath": [d["avg_breath"][i] for i in rng],
+            }
+        )
 
     def optimal_bedtime(self, end_date: date) -> dict:
         return {
             "optimal_bedtime_start": -3600,  # 11 PM
-            "optimal_bedtime_end": -1800,     # 11:30 PM
+            "optimal_bedtime_end": -1800,  # 11:30 PM
             "recommendation": "on_track",
         }
 
@@ -400,30 +456,36 @@ class DemoProvider:
     def readiness_trend(self, start: date, end: date) -> pd.DataFrame:
         rng = self._range_indices(start, end)
         d = self._data
-        return pd.DataFrame({
-            "day": [d["days"][i] for i in rng],
-            "score": [d["readiness_score"][i] for i in rng],
-        })
+        return pd.DataFrame(
+            {
+                "day": [d["days"][i] for i in rng],
+                "score": [d["readiness_score"][i] for i in rng],
+            }
+        )
 
     def readiness_contributors_trend(self, start: date, end: date) -> pd.DataFrame:
         rng = self._range_indices(start, end)
         d = self._data
-        return pd.DataFrame({
-            "day": [d["days"][i] for i in rng],
-            "HRV Balance": [d["hrv_balance_c"][i] for i in rng],
-            "Sleep Balance": [d["sleep_balance_c"][i] for i in rng],
-            "Recovery Index": [d["recovery_idx_c"][i] for i in rng],
-            "Resting HR": [d["resting_hr_c"][i] for i in rng],
-            "Sleep Regularity": [d["sleep_reg_c"][i] for i in rng],
-        })
+        return pd.DataFrame(
+            {
+                "day": [d["days"][i] for i in rng],
+                "HRV Balance": [d["hrv_balance_c"][i] for i in rng],
+                "Sleep Balance": [d["sleep_balance_c"][i] for i in rng],
+                "Recovery Index": [d["recovery_idx_c"][i] for i in rng],
+                "Resting HR": [d["resting_hr_c"][i] for i in rng],
+                "Sleep Regularity": [d["sleep_reg_c"][i] for i in rng],
+            }
+        )
 
     def readiness_temp_trend(self, start: date, end: date) -> pd.DataFrame:
         rng = self._range_indices(start, end)
         d = self._data
-        return pd.DataFrame({
-            "day": [d["days"][i] for i in rng],
-            "temp": [d["temp_deviation"][i] for i in rng],
-        })
+        return pd.DataFrame(
+            {
+                "day": [d["days"][i] for i in rng],
+                "temp": [d["temp_deviation"][i] for i in rng],
+            }
+        )
 
     # ------------------------------------------------------------------
     # Activity page
@@ -456,17 +518,19 @@ class DemoProvider:
     def activity_trend(self, start: date, end: date) -> pd.DataFrame:
         rng = self._range_indices(start, end)
         d = self._data
-        return pd.DataFrame({
-            "day": [d["days"][i] for i in rng],
-            "active_calories": [d["active_cal"][i] for i in rng],
-            "total_calories": [d["total_cal"][i] for i in rng],
-            "steps": [d["steps"][i] for i in rng],
-            "score": [d["activity_score"][i] for i in rng],
-            "distance_km": [d["distance_m"][i] / 1000.0 for i in rng],
-            "met": [d["met"][i] for i in rng],
-            "target_calories": [d["target_cal"][i] for i in rng],
-            "target_meters": [d["target_meters"][i] for i in rng],
-        })
+        return pd.DataFrame(
+            {
+                "day": [d["days"][i] for i in rng],
+                "active_calories": [d["active_cal"][i] for i in rng],
+                "total_calories": [d["total_cal"][i] for i in rng],
+                "steps": [d["steps"][i] for i in rng],
+                "score": [d["activity_score"][i] for i in rng],
+                "distance_km": [d["distance_m"][i] / 1000.0 for i in rng],
+                "met": [d["met"][i] for i in rng],
+                "target_calories": [d["target_cal"][i] for i in rng],
+                "target_meters": [d["target_meters"][i] for i in rng],
+            }
+        )
 
     def workouts(self, start: date, end: date) -> pd.DataFrame:
         rng = self._range_indices(start, end)
@@ -476,18 +540,32 @@ class DemoProvider:
         types = ["running", "walking", "cycling", "strength_training", "yoga", "swimming"]
         for i in rng:
             if random.random() < 0.35:
-                records.append({
-                    "day": d["days"][i],
-                    "activity": random.choice(types),
-                    "calories": round(random.gauss(300, 100)),
-                    "distance": round(random.gauss(5000, 2000)),
-                    "start_datetime": pd.Timestamp(f"{d['days'][i]} {(sh := random.randint(6, 17))}:00:00"),
-                    "end_datetime": pd.Timestamp(f"{d['days'][i]} {sh + 1}:00:00"),
-                    "intensity": random.choice(["easy", "moderate", "hard"]),
-                    "source": random.choice(["manual", "autodetected"]),
-                })
-        return pd.DataFrame(records).sort_values("day", ascending=False) if records else pd.DataFrame(
-            columns=["day", "activity", "calories", "distance", "start_datetime", "end_datetime", "intensity", "source"])
+                records.append(
+                    {
+                        "day": d["days"][i],
+                        "activity": random.choice(types),
+                        "calories": round(random.gauss(300, 100)),
+                        "distance": round(random.gauss(5000, 2000)),
+                        "start_datetime": pd.Timestamp(f"{d['days'][i]} {(sh := random.randint(6, 17))}:00:00"),
+                        "end_datetime": pd.Timestamp(f"{d['days'][i]} {sh + 1}:00:00"),
+                        "intensity": random.choice(["easy", "moderate", "hard"]),
+                        "source": random.choice(["manual", "autodetected"]),
+                    }
+                )
+        if not records:
+            return pd.DataFrame(
+                columns=[
+                    "day",
+                    "activity",
+                    "calories",
+                    "distance",
+                    "start_datetime",
+                    "end_datetime",
+                    "intensity",
+                    "source",
+                ]
+            )
+        return pd.DataFrame(records).sort_values("day", ascending=False)
 
     # ------------------------------------------------------------------
     # Body page
@@ -504,11 +582,13 @@ class DemoProvider:
     def stress_trend(self, start: date, end: date) -> pd.DataFrame:
         rng = self._range_indices(start, end)
         d = self._data
-        return pd.DataFrame({
-            "day": [d["days"][i] for i in rng],
-            "stress_h": [d["stress_high"][i] / 3600.0 for i in rng],
-            "recovery_h": [d["recovery_high"][i] / 3600.0 for i in rng],
-        })
+        return pd.DataFrame(
+            {
+                "day": [d["days"][i] for i in rng],
+                "stress_h": [d["stress_high"][i] / 3600.0 for i in rng],
+                "recovery_h": [d["recovery_high"][i] / 3600.0 for i in rng],
+            }
+        )
 
     def resilience_latest(self, end_date: date) -> dict:
         i = self._safe_idx(end_date)
@@ -523,26 +603,32 @@ class DemoProvider:
     def resilience_timeline(self, start: date, end: date) -> pd.DataFrame:
         rng = self._range_indices(start, end)
         d = self._data
-        return pd.DataFrame({
-            "day": [d["days"][i] for i in rng],
-            "level": [d["resilience_level"][i] for i in rng],
-        })
+        return pd.DataFrame(
+            {
+                "day": [d["days"][i] for i in rng],
+                "level": [d["resilience_level"][i] for i in rng],
+            }
+        )
 
     def cardio_age_trend(self, start: date, end: date) -> pd.DataFrame:
         rng = self._range_indices(start, end)
         d = self._data
-        return pd.DataFrame({
-            "day": [d["days"][i] for i in rng],
-            "vascular_age": [d["cardio_age"][i] for i in rng],
-        })
+        return pd.DataFrame(
+            {
+                "day": [d["days"][i] for i in rng],
+                "vascular_age": [d["cardio_age"][i] for i in rng],
+            }
+        )
 
     def vo2_max_trend(self, start: date, end: date) -> pd.DataFrame:
         rng = self._range_indices(start, end)
         d = self._data
-        return pd.DataFrame({
-            "day": [d["days"][i] for i in rng],
-            "vo2_max": [d["vo2_max"][i] for i in rng],
-        })
+        return pd.DataFrame(
+            {
+                "day": [d["days"][i] for i in rng],
+                "vo2_max": [d["vo2_max"][i] for i in rng],
+            }
+        )
 
     def spo2_latest(self, end_date: date) -> dict:
         i = self._safe_idx(end_date)
