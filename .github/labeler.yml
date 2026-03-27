@@ -1,0 +1,40 @@
+ingestion:
+  - changed-files:
+      - any-glob-to-any-file: "ingestion/**"
+
+frontend:
+  - changed-files:
+      - any-glob-to-any-file: "streamlit/**"
+
+database:
+  - changed-files:
+      - any-glob-to-any-file: "postgres/**"
+
+grafana:
+  - changed-files:
+      - any-glob-to-any-file: "grafana/**"
+
+tests:
+  - changed-files:
+      - any-glob-to-any-file: "tests/**"
+
+ci:
+  - changed-files:
+      - any-glob-to-any-file: ".github/**"
+
+docker:
+  - changed-files:
+      - any-glob-to-any-file:
+          - "Dockerfile*"
+          - "docker-compose*"
+
+config:
+  - changed-files:
+      - any-glob-to-any-file:
+          - "pyproject.toml"
+          - "Makefile"
+          - ".env.example"
+
+dependencies:
+  - changed-files:
+      - any-glob-to-any-file: "**/requirements*.txt"
