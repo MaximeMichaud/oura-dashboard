@@ -87,27 +87,6 @@ updates:
       prefix: build
       include: scope
 
-  # docker - docker-compose.yaml (postgres, grafana images)
-  - package-ecosystem: docker
-    directory: /
-    schedule:
-      interval: weekly
-      day: monday
-    open-pull-requests-limit: 10
-    reviewers:
-      - MaximeMichaud
-    labels:
-      - dependencies
-      - docker
-    groups:
-      minor-and-patch:
-        update-types:
-          - minor
-          - patch
-    commit-message:
-      prefix: build
-      include: scope
-
   # github-actions
   - package-ecosystem: github-actions
     directory: /
