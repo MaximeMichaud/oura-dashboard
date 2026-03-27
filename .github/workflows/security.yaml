@@ -1,0 +1,100 @@
+name: Security
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    # Every Sunday at 03:00 UTC
+    - cron: "0 3 * * 0"
+
+permissions:
+  security-events: write
+  contents: read
+  actions: read
+
+concurrency:
+  group: security-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  dependency-audit:
+    name: Dependency Audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Install pip-audit
+        run: pip install pip-audit
+
+      - name: Audit ingestion dependencies
+        run: pip-audit -r ingestion/requirements.txt
+
+      - name: Audit streamlit dependencies
+        run: pip-audit -r streamlit/requirements.txt
+
+  container-scan:
+    name: Container Scan
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - image: oura-ingestion
+            context: ingestion
+          - image: oura-streamlit
+            context: streamlit
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Build ${{ matrix.image }} image
+        run: docker build -t ${{ matrix.image }}:scan ${{ matrix.context }}/
+
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@v0.35.0
+        with:
+          image-ref: ${{ matrix.image }}:scan
+          format: sarif
+          output: ${{ matrix.image }}-trivy.sarif
+          severity: CRITICAL,HIGH
+          exit-code: "1"
+
+      - name: Upload Trivy SARIF to GitHub Security tab
+        uses: github/codeql-action/upload-sarif@v4
+        if: always()
+        with:
+          sarif_file: ${{ matrix.image }}-trivy.sarif
+          category: trivy-${{ matrix.image }}
+
+  codeql:
+    name: CodeQL Analysis
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v4
+        with:
+          languages: python
+
+      - name: Perform CodeQL analysis
+        uses: github/codeql-action/analyze@v4
+
+  secret-scan:
+    name: Secret Scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: TruffleHog secret scan
+        uses: trufflesecurity/trufflehog@v3.94.1
+        with:
+          extra_args: --only-verified

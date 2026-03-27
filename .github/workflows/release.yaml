@@ -1,0 +1,37 @@
+# Automated releases via Release Please.
+# On every push to main, this workflow either creates/updates a release PR
+# (accumulating conventional commits into a changelog) or, when that PR is
+# merged, publishes a GitHub Release with auto-generated notes.
+
+name: Release
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  release-please:
+    name: Release Please
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: googleapis/release-please-action@v4
+        id: release
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Enable auto-merge on release PR
+        if: steps.release.outputs.pr
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          PR_NUMBER=$(echo '${{ steps.release.outputs.pr }}' | jq -r '.number')
+          echo "Enabling auto-merge (squash) for release PR #${PR_NUMBER}..."
+          gh pr merge "${PR_NUMBER}" \
+            --repo "${{ github.repository }}" \
+            --auto \
+            --squash

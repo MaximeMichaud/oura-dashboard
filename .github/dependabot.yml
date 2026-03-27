@@ -1,0 +1,130 @@
+version: 2
+
+updates:
+  # pip - ingestion service
+  - package-ecosystem: pip
+    directory: /ingestion
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 10
+    reviewers:
+      - MaximeMichaud
+    labels:
+      - dependencies
+      - python
+    groups:
+      minor-and-patch:
+        update-types:
+          - minor
+          - patch
+    commit-message:
+      prefix: fix
+      prefix-development: chore
+      include: scope
+
+  # pip - streamlit frontend
+  - package-ecosystem: pip
+    directory: /streamlit
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 10
+    reviewers:
+      - MaximeMichaud
+    labels:
+      - dependencies
+      - python
+    groups:
+      minor-and-patch:
+        update-types:
+          - minor
+          - patch
+    commit-message:
+      prefix: fix
+      prefix-development: chore
+      include: scope
+
+  # docker - ingestion Dockerfile
+  - package-ecosystem: docker
+    directory: /ingestion
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 10
+    reviewers:
+      - MaximeMichaud
+    labels:
+      - dependencies
+      - docker
+    groups:
+      minor-and-patch:
+        update-types:
+          - minor
+          - patch
+    commit-message:
+      prefix: build
+      include: scope
+
+  # docker - streamlit Dockerfile
+  - package-ecosystem: docker
+    directory: /streamlit
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 10
+    reviewers:
+      - MaximeMichaud
+    labels:
+      - dependencies
+      - docker
+    groups:
+      minor-and-patch:
+        update-types:
+          - minor
+          - patch
+    commit-message:
+      prefix: build
+      include: scope
+
+  # docker - docker-compose.yaml (postgres, grafana images)
+  - package-ecosystem: docker
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 10
+    reviewers:
+      - MaximeMichaud
+    labels:
+      - dependencies
+      - docker
+    groups:
+      minor-and-patch:
+        update-types:
+          - minor
+          - patch
+    commit-message:
+      prefix: build
+      include: scope
+
+  # github-actions
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 10
+    reviewers:
+      - MaximeMichaud
+    labels:
+      - dependencies
+      - ci
+    groups:
+      minor-and-patch:
+        update-types:
+          - minor
+          - patch
+    commit-message:
+      prefix: ci
+      include: scope
