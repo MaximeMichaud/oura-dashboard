@@ -1,5 +1,6 @@
 # Auto-approve and auto-merge dependency update PRs from trusted bots.
 # Major version bumps are approved but left for manual merge review.
+# Uses GitHub's native auto-merge (no polling needed).
 
 name: Auto-merge dependency updates
 
@@ -11,7 +12,6 @@ permissions:
   contents: write
   pull-requests: write
 
-# Only one run per PR at a time; cancel in-progress runs on new pushes.
 concurrency:
   group: auto-merge-${{ github.event.pull_request.number }}
   cancel-in-progress: true
@@ -21,7 +21,6 @@ jobs:
     name: Auto-merge bot PRs
     runs-on: ubuntu-latest
 
-    # Only run for Dependabot or Renovate PRs.
     if: >-
       github.event.pull_request.user.login == 'dependabot[bot]' ||
       github.event.pull_request.user.login == 'renovate[bot]'
@@ -29,7 +28,6 @@ jobs:
     steps:
       - name: Fetch Dependabot metadata
         id: dependabot-metadata
-        # Only produces output for Dependabot PRs; Renovate skips this.
         if: github.event.pull_request.user.login == 'dependabot[bot]'
         uses: dependabot/fetch-metadata@v2
         with:
@@ -38,14 +36,9 @@ jobs:
       - name: Determine update type
         id: update-type
         run: |
-          # For Dependabot PRs, use the metadata action output.
-          # For Renovate PRs, parse the PR title to detect major bumps.
           if [[ "${{ github.event.pull_request.user.login }}" == "dependabot[bot]" ]]; then
             UPDATE_TYPE="${{ steps.dependabot-metadata.outputs.update-type }}"
           else
-            # Renovate titles look like "chore(deps): update foo to v3" or
-            # "fix(deps): update bar major". Check for "major" keyword or
-            # a version jump pattern (vN -> vN+x where first digit changed).
             TITLE="${{ github.event.pull_request.title }}"
             if echo "$TITLE" | grep -iqE '\bmajor\b'; then
               UPDATE_TYPE="version-update:semver-major"
@@ -53,67 +46,23 @@ jobs:
               UPDATE_TYPE="version-update:semver-minor"
             fi
           fi
-
           echo "update_type=$UPDATE_TYPE" >> "$GITHUB_OUTPUT"
           echo "Detected update type: $UPDATE_TYPE"
-
-      - name: Wait for CI checks to pass
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          PR_NUMBER="${{ github.event.pull_request.number }}"
-          REPO="${{ github.repository }}"
-          MAX_ATTEMPTS=60
-          SLEEP_SECONDS=30
-
-          echo "Waiting for CI checks on PR #${PR_NUMBER}..."
-
-          for attempt in $(seq 1 "$MAX_ATTEMPTS"); do
-            # Get the check status summary for this PR.
-            STATUS=$(gh pr checks "$PR_NUMBER" --repo "$REPO" 2>&1) || true
-
-            # Count statuses: pass, fail, pending.
-            PASS_COUNT=$(echo "$STATUS" | grep -c "pass" || true)
-            FAIL_COUNT=$(echo "$STATUS" | grep -c "fail" || true)
-            PENDING_COUNT=$(echo "$STATUS" | grep -cE "pending|queued|in_progress" || true)
-
-            echo "Attempt ${attempt}/${MAX_ATTEMPTS} - pass: ${PASS_COUNT}, fail: ${FAIL_COUNT}, pending: ${PENDING_COUNT}"
-
-            if [[ "$FAIL_COUNT" -gt 0 ]]; then
-              echo "CI checks failed. Aborting auto-merge."
-              exit 1
-            fi
-
-            if [[ "$PENDING_COUNT" -eq 0 && "$PASS_COUNT" -gt 0 ]]; then
-              echo "All CI checks passed."
-              break
-            fi
-
-            if [[ "$attempt" -eq "$MAX_ATTEMPTS" ]]; then
-              echo "Timed out waiting for CI checks after $((MAX_ATTEMPTS * SLEEP_SECONDS)) seconds."
-              exit 1
-            fi
-
-            sleep "$SLEEP_SECONDS"
-          done
 
       - name: Approve PR
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          echo "Approving PR #${{ github.event.pull_request.number }}..."
           gh pr review "${{ github.event.pull_request.number }}" \
             --repo "${{ github.repository }}" \
             --approve \
             --body "Auto-approved: dependency update from ${{ github.event.pull_request.user.login }}."
 
       - name: Enable auto-merge for minor/patch updates
-        # Skip auto-merge for major version bumps - those need manual review.
         if: steps.update-type.outputs.update_type != 'version-update:semver-major'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          echo "Enabling auto-merge (squash) for PR #${{ github.event.pull_request.number }}..."
           gh pr merge "${{ github.event.pull_request.number }}" \
             --repo "${{ github.repository }}" \
             --auto \
@@ -122,5 +71,4 @@ jobs:
       - name: Skip auto-merge for major updates
         if: steps.update-type.outputs.update_type == 'version-update:semver-major'
         run: |
-          echo "Major version bump detected. PR has been approved but will NOT be auto-merged."
-          echo "A maintainer must review and merge this PR manually."
+          echo "Major version bump detected. PR approved but NOT auto-merged."
