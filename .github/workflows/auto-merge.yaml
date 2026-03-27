@@ -1,0 +1,74 @@
+# Auto-approve and auto-merge dependency update PRs from trusted bots.
+# Major version bumps are approved but left for manual merge review.
+# Uses GitHub's native auto-merge (no polling needed).
+
+name: Auto-merge dependency updates
+
+on:
+  pull_request_target:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: auto-merge-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  auto-merge:
+    name: Auto-merge bot PRs
+    runs-on: ubuntu-latest
+
+    if: >-
+      github.event.pull_request.user.login == 'dependabot[bot]' ||
+      github.event.pull_request.user.login == 'renovate[bot]'
+
+    steps:
+      - name: Fetch Dependabot metadata
+        id: dependabot-metadata
+        if: github.event.pull_request.user.login == 'dependabot[bot]'
+        uses: dependabot/fetch-metadata@v2
+        with:
+          github-token: ${{ github.token }}
+
+      - name: Determine update type
+        id: update-type
+        run: |
+          if [[ "${{ github.event.pull_request.user.login }}" == "dependabot[bot]" ]]; then
+            UPDATE_TYPE="${{ steps.dependabot-metadata.outputs.update-type }}"
+          else
+            TITLE="${{ github.event.pull_request.title }}"
+            if echo "$TITLE" | grep -iqE '\bmajor\b'; then
+              UPDATE_TYPE="version-update:semver-major"
+            else
+              UPDATE_TYPE="version-update:semver-minor"
+            fi
+          fi
+          echo "update_type=$UPDATE_TYPE" >> "$GITHUB_OUTPUT"
+          echo "Detected update type: $UPDATE_TYPE"
+
+      - name: Approve PR
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh pr review "${{ github.event.pull_request.number }}" \
+            --repo "${{ github.repository }}" \
+            --approve \
+            --body "Auto-approved: dependency update from ${{ github.event.pull_request.user.login }}."
+
+      - name: Enable auto-merge for minor/patch updates
+        if: steps.update-type.outputs.update_type != 'version-update:semver-major'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh pr merge "${{ github.event.pull_request.number }}" \
+            --repo "${{ github.repository }}" \
+            --auto \
+            --squash
+
+      - name: Skip auto-merge for major updates
+        if: steps.update-type.outputs.update_type == 'version-update:semver-major'
+        run: |
+          echo "Major version bump detected. PR approved but NOT auto-merged."

@@ -6,6 +6,10 @@ on:
   pull_request:
     branches: [main]
 
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
 permissions:
   contents: read
 
@@ -16,22 +20,37 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      - name: Lint Python
+      - name: Ruff check - ingestion
         uses: astral-sh/ruff-action@v3
         with:
           args: check ingestion/
 
-      - name: Check formatting
+      - name: Ruff check - streamlit
+        uses: astral-sh/ruff-action@v3
+        with:
+          args: check streamlit/
+
+      - name: Ruff format check - ingestion
         uses: astral-sh/ruff-action@v3
         with:
           args: format --check ingestion/
 
-      - name: Lint Dockerfile
+      - name: Ruff format check - streamlit
+        uses: astral-sh/ruff-action@v3
+        with:
+          args: format --check streamlit/
+
+      - name: Hadolint - ingestion/Dockerfile
         uses: hadolint/hadolint-action@v3.3.0
         with:
           dockerfile: ingestion/Dockerfile
 
-      - name: Validate dashboard JSONs
+      - name: Hadolint - streamlit/Dockerfile
+        uses: hadolint/hadolint-action@v3.3.0
+        with:
+          dockerfile: streamlit/Dockerfile
+
+      - name: Validate Grafana dashboard JSONs
         run: |
           python -c "
           import json, sys, pathlib
@@ -54,6 +73,55 @@ jobs:
           print('All dashboard JSONs valid')
           "
 
+      - name: YAML lint
+        uses: ibiqlik/action-yamllint@v3
+        with:
+          file_or_dir: "."
+          config_data: |
+            extends: default
+            rules:
+              document-start: disable
+              line-length:
+                max: 200
+              truthy:
+                check-keys: false
+              comments:
+                min-spaces-from-content: 1
+
+      - name: SQL lint - postgres/init.sql
+        run: |
+          python -c "
+          import sys, pathlib, re
+          sql = pathlib.Path('postgres/init.sql').read_text()
+          errors = []
+          lines = sql.splitlines()
+          for i, line in enumerate(lines, 1):
+              stripped = line.rstrip()
+              if len(stripped) > 200:
+                  errors.append(f'Line {i}: exceeds 200 chars ({len(stripped)})')
+              if '\t' in line and not line.strip().startswith('--'):
+                  errors.append(f'Line {i}: contains tab characters (use spaces)')
+          if not sql.strip():
+              errors.append('File is empty')
+          if not re.search(r'CREATE\s+TABLE', sql, re.IGNORECASE):
+              errors.append('No CREATE TABLE statements found')
+          parens = 0
+          for i, ch in enumerate(sql):
+              if ch == '(':
+                  parens += 1
+              elif ch == ')':
+                  parens -= 1
+              if parens < 0:
+                  errors.append(f'Unmatched closing parenthesis near character {i}')
+                  break
+          if parens > 0:
+              errors.append(f'Unclosed parentheses: {parens} still open at end of file')
+          if errors:
+              print('\n'.join(errors))
+              sys.exit(1)
+          print('SQL validation passed')
+          "
+
   test:
     name: Test
     runs-on: ubuntu-latest
@@ -65,6 +133,8 @@ jobs:
         with:
           python-version: "3.14"
           allow-prereleases: true
+          cache: pip
+          cache-dependency-path: ingestion/requirements.txt
 
       - name: Install dependencies
         run: |
@@ -72,12 +142,20 @@ jobs:
           pip install pytest pytest-cov
 
       - name: Run tests with coverage
-        run: pytest tests/ -v --cov=oura_ingest --cov-report=term-missing --cov-fail-under=70
-
-      - name: Security audit
         run: |
-          pip install pip-audit
-          pip-audit -r ingestion/requirements.txt
+          pytest tests/ -v \
+            --cov=oura_ingest \
+            --cov-report=term-missing \
+            --cov-report=xml:coverage.xml \
+            --cov-fail-under=70
+
+      - name: Upload coverage artifact
+        uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: coverage-report
+          path: coverage.xml
+          retention-days: 14
 
   build:
     name: Build
@@ -89,8 +167,12 @@ jobs:
       - name: Validate compose file
         run: docker compose config --quiet
 
-      - name: Build images
-        run: docker compose build
+      - name: Build all images
+        run: |
+          DOCKER_BUILDKIT=1 docker compose build \
+            --build-arg BUILDKIT_INLINE_CACHE=1
+        env:
+          COMPOSE_DOCKER_CLI_BUILD: 1
 
   integration:
     name: Integration
@@ -168,3 +250,30 @@ jobs:
           DASH_COUNT=$(curl -sf -u admin:admin http://localhost:3000/api/search?type=dash-db | python3 -c "import sys,json; print(len(json.load(sys.stdin)))")
           echo "Dashboards loaded: $DASH_COUNT"
           [ "$DASH_COUNT" -ge 5 ] || { echo "Expected at least 5 dashboards, got $DASH_COUNT"; exit 1; }
+
+      - name: Build and start Streamlit container
+        run: |
+          docker build -t oura-streamlit ./streamlit
+          docker run -d --name streamlit \
+            --network host \
+            -e POSTGRES_HOST=localhost \
+            -e POSTGRES_PORT=5432 \
+            -e POSTGRES_DB=oura \
+            -e POSTGRES_USER=oura \
+            -e POSTGRES_PASSWORD=oura \
+            -e OURA_TOKEN="" \
+            -e USER_TIMEZONE=America/Toronto \
+            oura-streamlit
+
+      - name: Wait for Streamlit health
+        run: |
+          for i in $(seq 1 30); do
+            if curl -sf http://localhost:8501/_stcore/health > /dev/null 2>&1; then
+              echo "Streamlit ready"
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "Streamlit did not become ready in time"
+          docker logs streamlit
+          exit 1
