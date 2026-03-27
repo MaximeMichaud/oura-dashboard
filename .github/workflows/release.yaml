@@ -12,6 +12,7 @@ on:
 permissions:
   contents: write
   pull-requests: write
+  actions: write
 
 jobs:
   release-please:
@@ -35,3 +36,16 @@ jobs:
             --repo "${{ github.repository }}" \
             --auto \
             --squash
+
+      # GITHUB_TOKEN pushes don't trigger workflows on the PR branch.
+      # Dispatch CI manually so required checks report on the release PR.
+      - name: Trigger CI on release PR branch
+        if: steps.release.outputs.pr
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          BRANCH=$(echo '${{ steps.release.outputs.pr }}' | jq -r '.headBranchName')
+          echo "Triggering CI on branch ${BRANCH}..."
+          gh workflow run ci.yaml \
+            --repo "${{ github.repository }}" \
+            --ref "${BRANCH}"
