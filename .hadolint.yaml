@@ -1,0 +1,2 @@
+ignored:
+  - DL3018  # Alpine packages change versions on each release, pinning is impractical
