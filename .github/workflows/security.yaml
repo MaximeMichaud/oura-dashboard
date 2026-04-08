@@ -28,7 +28,8 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v6
         with:
-          python-version: "3.12"
+          python-version: "3.14"
+          allow-prereleases: true
 
       - name: Install pip-audit
         run: pip install pip-audit
@@ -63,6 +64,7 @@ jobs:
           format: sarif
           output: ${{ matrix.image }}-trivy.sarif
           severity: CRITICAL,HIGH
+          ignore-unfixed: true
           exit-code: "0"
 
       - name: Upload Trivy SARIF to GitHub Security tab

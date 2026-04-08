@@ -231,7 +231,7 @@ jobs:
             -v ${{ github.workspace }}/grafana/provisioning/dashboards-json:/var/lib/grafana/dashboards:ro \
             -e GF_SECURITY_ADMIN_USER=admin \
             -e GF_SECURITY_ADMIN_PASSWORD=admin \
-            grafana/grafana:12.3.3
+            grafana/grafana:12.4.2
 
       - name: Wait for Grafana
         run: |
