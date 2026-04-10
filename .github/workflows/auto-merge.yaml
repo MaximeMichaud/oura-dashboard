@@ -56,7 +56,7 @@ jobs:
           gh pr review "${{ github.event.pull_request.number }}" \
             --repo "${{ github.repository }}" \
             --approve \
-            --body "Auto-approved: dependency update from ${{ github.event.pull_request.user.login }}."
+            --body "Auto-approved: dependency update from ${{ github.event.pull_request.user.login }}." || true
 
       - name: Enable auto-merge for minor/patch updates
         if: steps.update-type.outputs.update_type != 'version-update:semver-major'
