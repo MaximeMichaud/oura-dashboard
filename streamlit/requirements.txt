@@ -4,4 +4,4 @@ pandas>=2.2.0
 sqlalchemy>=2.0.0
 psycopg2-binary>=2.9.12
 requests>=2.31.0
-matplotlib>=3.8.0
+matplotlib>=3.10.9
