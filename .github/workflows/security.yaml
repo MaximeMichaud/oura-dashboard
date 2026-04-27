@@ -58,7 +58,7 @@ jobs:
         run: docker build -t ${{ matrix.image }}:scan ${{ matrix.context }}/
 
       - name: Run Trivy vulnerability scanner
-        uses: aquasecurity/trivy-action@v0.35.0
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
           image-ref: ${{ matrix.image }}:scan
           format: sarif
@@ -97,6 +97,6 @@ jobs:
           fetch-depth: 0
 
       - name: TruffleHog secret scan
-        uses: trufflesecurity/trufflehog@v3.94.3
+        uses: trufflesecurity/trufflehog@v3.95.2
         with:
           extra_args: --only-verified
