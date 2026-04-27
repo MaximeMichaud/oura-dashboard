@@ -2,7 +2,7 @@ certifi==2026.2.25
 charset-normalizer==3.4.6
 greenlet==3.3.2
 idna==3.11
-psycopg2-binary==2.9.11
+psycopg2-binary==2.9.12
 requests==2.33.1
 schedule==1.2.2
 sqlalchemy==2.0.49
