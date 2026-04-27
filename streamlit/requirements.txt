@@ -1,4 +1,4 @@
-streamlit>=1.40.0
+streamlit>=1.56.0
 plotly>=6.7.0
 pandas>=3.0.2
 sqlalchemy>=2.0.0
