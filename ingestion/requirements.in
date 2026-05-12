@@ -1,4 +1,4 @@
-requests>=2.31,<3
+requests>=2.34.0,<3
 sqlalchemy>=2.0,<3
 psycopg2-binary>=2.9.12,<3
 tenacity>=8.2,<10
