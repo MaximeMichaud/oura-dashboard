@@ -1,0 +1,25 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["config:recommended"],
+  "enabledManagers": ["docker-compose", "dockerfile", "pip_requirements"],
+  "ignorePaths": [
+    "oura-data-visualiser/**",
+    "Oura-Ring-Sleep-Coach/**",
+    "ouradb/**",
+    "node_modules/**"
+  ],
+  "schedule": ["before 6am on Monday"],
+  "labels": ["dependencies"],
+  "dependencyDashboard": false,
+  "rangeStrategy": "bump",
+  "packageRules": [
+    {
+      "matchManagers": ["docker-compose", "dockerfile"],
+      "groupName": "Docker images"
+    },
+    {
+      "matchManagers": ["pip_requirements"],
+      "groupName": "Python dependencies"
+    }
+  ]
+}
