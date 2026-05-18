@@ -1,7 +1,7 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": ["config:recommended"],
-  "enabledManagers": ["docker-compose", "dockerfile", "pip_requirements"],
+  "enabledManagers": ["docker-compose", "dockerfile", "pip_requirements", "github-actions"],
   "ignorePaths": [
     "oura-data-visualiser/**",
     "Oura-Ring-Sleep-Coach/**",
@@ -20,6 +20,10 @@
     {
       "matchManagers": ["pip_requirements"],
       "groupName": "Python dependencies"
+    },
+    {
+      "matchManagers": ["github-actions"],
+      "groupName": "GitHub Actions"
     }
   ]
 }
