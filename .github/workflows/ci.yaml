@@ -21,22 +21,22 @@ jobs:
       - uses: actions/checkout@v6
 
       - name: Ruff check - ingestion
-        uses: astral-sh/ruff-action@v3
+        uses: astral-sh/ruff-action@v4.0.0
         with:
           args: check ingestion/
 
       - name: Ruff check - streamlit
-        uses: astral-sh/ruff-action@v3
+        uses: astral-sh/ruff-action@v4.0.0
         with:
           args: check streamlit/
 
       - name: Ruff format check - ingestion
-        uses: astral-sh/ruff-action@v3
+        uses: astral-sh/ruff-action@v4.0.0
         with:
           args: format --check ingestion/
 
       - name: Ruff format check - streamlit
-        uses: astral-sh/ruff-action@v3
+        uses: astral-sh/ruff-action@v4.0.0
         with:
           args: format --check streamlit/
 
