@@ -4,13 +4,13 @@
 
 Unified dashboard for your [Oura Ring](https://ouraring.com) data - sleep, readiness, activity, stress, and more.
 
-Built with **[Oura API v2](https://cloud.ouraring.com/v2/docs)**, **PostgreSQL 16**, **Grafana 12**, and a Python ingestion service (optional profile) that syncs automatically every 30 minutes.
+Built with **[Oura API v2](https://cloud.ouraring.com/v2/docs)**, **PostgreSQL 18**, **Grafana 13**, and a Python ingestion service (optional profile) that syncs automatically every 30 minutes.
 
 ## Stack
 
 - **Oura API v2** - personal health data
-- **PostgreSQL 16** - persistent storage (13 tables + 1 materialized view, auto-initialized)
-- **Grafana 12.3.3** - 5 pre-provisioned dashboards (no setup required)
+- **PostgreSQL 18** - persistent storage (13 tables + 1 materialized view, auto-initialized)
+- **Grafana 13** - 5 pre-provisioned dashboards (no setup required)
 - **Python 3.14** - ingestion service with incremental sync, retry logic, and CLI flags
 
 ## Prerequisites
@@ -133,6 +133,7 @@ python -m oura_ingest.cli --once --endpoint daily_sleep
 | Token expired | Get a new token, update `.env`, then `docker compose restart ingestion` |
 | "No data" on panels | Check `make status` - if sync_log is empty, the initial import is still running |
 | PostgreSQL connection refused | Wait for the healthcheck - Postgres can take a few seconds to start |
+| Postgres container stays unhealthy after a major version bump | A new PostgreSQL major cannot reuse an older version's data volume. Dump and restore manually, or reset with `docker compose down -v && make up` to re-import |
 | Ingestion stuck | Check `docker compose logs ingestion` for error details |
 
 ## Reset
