@@ -178,102 +178,73 @@ jobs:
     name: Integration
     needs: [build]
     runs-on: ubuntu-latest
-    services:
-      postgres:
-        image: postgres:18-alpine
-        env:
-          POSTGRES_DB: oura
-          POSTGRES_USER: oura
-          POSTGRES_PASSWORD: oura
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd "pg_isready -U oura"
-          --health-interval 5s
-          --health-timeout 3s
-          --health-retries 10
-
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v6
 
-      - name: Install PostgreSQL client
+      - name: Build images
         run: |
-          sudo apt-get update -qq
-          sudo apt-get install -y -qq postgresql-client > /dev/null
+          cp .env.example .env
+          docker compose build
 
-      - name: Apply schema
-        run: PGPASSWORD=oura psql -h localhost -U oura -d oura -f postgres/init.sql
+      - name: Start the full stack with docker compose
+        run: docker compose up -d --wait --wait-timeout 120
 
-      - name: Verify tables
+      - name: Verify schema auto-applied on first boot (13 tables)
         run: |
-          TABLE_COUNT=$(PGPASSWORD=oura psql -h localhost -U oura -d oura -t -c \
-            "SELECT count(*) FROM information_schema.tables WHERE table_schema = 'public' AND table_type = 'BASE TABLE'" | xargs)
+          TABLE_COUNT=$(docker compose exec -T postgres \
+            psql -U oura -d oura -tAc \
+            "SELECT count(*) FROM information_schema.tables WHERE table_schema = 'public' AND table_type = 'BASE TABLE'")
           echo "Tables found: $TABLE_COUNT"
           [ "$TABLE_COUNT" -eq 13 ] || { echo "Expected 13 tables, got $TABLE_COUNT"; exit 1; }
 
       - name: Verify indexes
         run: |
-          INDEX_COUNT=$(PGPASSWORD=oura psql -h localhost -U oura -d oura -t -c \
-            "SELECT count(*) FROM pg_indexes WHERE schemaname = 'public'" | xargs)
+          INDEX_COUNT=$(docker compose exec -T postgres \
+            psql -U oura -d oura -tAc \
+            "SELECT count(*) FROM pg_indexes WHERE schemaname = 'public'")
           echo "Indexes found: $INDEX_COUNT"
           [ "$INDEX_COUNT" -ge 16 ] || { echo "Expected at least 16 indexes, got $INDEX_COUNT"; exit 1; }
 
-      - name: Verify idempotency
-        run: PGPASSWORD=oura psql -h localhost -U oura -d oura -f postgres/init.sql
-
-      - name: Start Grafana
+      - name: Verify schema idempotency
         run: |
-          docker run -d --name grafana \
-            --network host \
-            -v ${{ github.workspace }}/grafana/grafana.ini:/etc/grafana/grafana.ini:ro \
-            -v ${{ github.workspace }}/grafana/provisioning/datasources:/etc/grafana/provisioning/datasources:ro \
-            -v ${{ github.workspace }}/grafana/provisioning/dashboards:/etc/grafana/provisioning/dashboards:ro \
-            -v ${{ github.workspace }}/grafana/provisioning/dashboards-json:/var/lib/grafana/dashboards:ro \
-            -e GF_SECURITY_ADMIN_USER=admin \
-            -e GF_SECURITY_ADMIN_PASSWORD=admin \
-            grafana/grafana:13.0.1
+          docker compose exec -T postgres \
+            psql -U oura -d oura -v ON_ERROR_STOP=1 \
+            -f /docker-entrypoint-initdb.d/init.sql
 
-      - name: Wait for Grafana
+      - name: Verify Grafana health
         run: |
-          for i in $(seq 1 30); do
-            if curl -sf http://localhost:3000/api/health > /dev/null 2>&1; then
-              echo "Grafana ready"
-              exit 0
-            fi
-            sleep 2
-          done
-          echo "Grafana did not become ready in time"
-          exit 1
+          curl -sf http://localhost:3000/api/health \
+            | python3 -c "import sys, json; d = json.load(sys.stdin); assert d.get('database') == 'ok', d; print('Grafana', d['version'])"
 
-      - name: Verify dashboards loaded
+      - name: Verify dashboards provisioned
         run: |
-          DASH_COUNT=$(curl -sf -u admin:admin http://localhost:3000/api/search?type=dash-db | python3 -c "import sys,json; print(len(json.load(sys.stdin)))")
+          DASH_COUNT=$(curl -sf -u admin:admin 'http://localhost:3000/api/search?type=dash-db' \
+            | python3 -c "import sys, json; print(len(json.load(sys.stdin)))")
           echo "Dashboards loaded: $DASH_COUNT"
           [ "$DASH_COUNT" -ge 5 ] || { echo "Expected at least 5 dashboards, got $DASH_COUNT"; exit 1; }
 
-      - name: Build and start Streamlit container
+      - name: Verify datasource health (Grafana to PostgreSQL)
         run: |
-          docker build -t oura-streamlit ./streamlit
-          docker run -d --name streamlit \
-            --network host \
-            -e POSTGRES_HOST=localhost \
-            -e POSTGRES_PORT=5432 \
-            -e POSTGRES_DB=oura \
-            -e POSTGRES_USER=oura \
-            -e POSTGRES_PASSWORD=oura \
-            -e OURA_TOKEN="" \
-            -e USER_TIMEZONE=America/Toronto \
-            oura-streamlit
+          STATUS=$(curl -sf -u admin:admin http://localhost:3000/api/datasources/uid/oura-pg/health \
+            | python3 -c "import sys, json; print(json.load(sys.stdin).get('status'))")
+          echo "Datasource health: $STATUS"
+          [ "$STATUS" = "OK" ] || { echo "Datasource unhealthy"; exit 1; }
 
-      - name: Wait for Streamlit health
+      - name: Verify a dashboard query executes through the datasource
         run: |
-          for i in $(seq 1 30); do
-            if curl -sf http://localhost:8501/_stcore/health > /dev/null 2>&1; then
-              echo "Streamlit ready"
-              exit 0
-            fi
-            sleep 2
-          done
-          echo "Streamlit did not become ready in time"
-          docker logs streamlit
-          exit 1
+          curl -sf -u admin:admin http://localhost:3000/api/ds/query \
+            -H 'Content-Type: application/json' \
+            -d '{"queries":[{"refId":"A","datasource":{"uid":"oura-pg"},"rawSql":"SELECT count(*) AS n FROM daily_sleep","format":"table"}],"from":"now-1h","to":"now"}' \
+            | python3 -c "import sys, json; a = json.load(sys.stdin).get('results', {}).get('A', {}); assert not a.get('error'), a; assert a.get('frames'), a; print('Datasource query path OK')"
+
+      - name: Verify Streamlit health
+        run: curl -sf http://localhost:8501/_stcore/health && echo "Streamlit ready"
+
+      - name: Dump compose logs on failure
+        if: failure()
+        run: docker compose logs --no-color
+
+      - name: Tear down
+        if: always()
+        run: docker compose down -v

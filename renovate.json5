@@ -1,7 +1,7 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": ["config:recommended"],
-  "enabledManagers": ["docker-compose", "dockerfile", "pip_requirements", "github-actions", "custom.regex"],
+  "enabledManagers": ["docker-compose", "dockerfile", "pip_requirements", "github-actions"],
   "ignorePaths": [
     "oura-data-visualiser/**",
     "Oura-Ring-Sleep-Coach/**",
@@ -12,21 +12,9 @@
   "labels": ["dependencies"],
   "dependencyDashboard": false,
   "rangeStrategy": "bump",
-  "customManagers": [
-    {
-      // The CI workflow starts Grafana via a `docker run grafana/grafana:<tag>`
-      // line inside a shell `run:` block, which no built-in manager parses.
-      // This keeps that tag in lockstep with docker-compose so they never drift.
-      "customType": "regex",
-      "fileMatch": ["^\\.github/workflows/[^/]+\\.ya?ml$"],
-      "matchStrings": ["grafana/grafana:(?<currentValue>[\\w][\\w.-]{0,127})"],
-      "depNameTemplate": "grafana/grafana",
-      "datasourceTemplate": "docker"
-    }
-  ],
   "packageRules": [
     {
-      "matchManagers": ["docker-compose", "dockerfile", "custom.regex"],
+      "matchManagers": ["docker-compose", "dockerfile"],
       "groupName": "Docker images"
     },
     {
