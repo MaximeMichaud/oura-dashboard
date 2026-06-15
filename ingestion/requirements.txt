@@ -5,7 +5,7 @@ idna==3.18
 psycopg2-binary==2.9.12
 requests==2.34.2
 schedule==1.2.2
-sqlalchemy==2.0.50
+sqlalchemy==2.0.51
 tenacity==9.1.4
 typing-extensions==4.15.0
 urllib3==2.7.0
