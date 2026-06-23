@@ -1,5 +1,6 @@
 """Tests for oura_ingest.cli (task 41)."""
 
+import signal
 from unittest.mock import MagicMock, patch
 
 
@@ -53,3 +54,81 @@ class TestOnceFlag:
             main()
 
         mock_sync.assert_called_once_with(mock_engine, mock_client, only_endpoint="daily_sleep")
+
+
+class TestShutdown:
+    def test_sets_stop_event(self):
+        from oura_ingest.cli import _shutdown, _stop
+
+        _stop.clear()
+        try:
+            _shutdown(signal.SIGTERM, None)
+            assert _stop.is_set()
+        finally:
+            _stop.clear()
+
+
+class TestInitialSyncTokenExpired:
+    def test_returns_without_scheduling(self):
+        from oura_ingest.cli import main
+        from oura_ingest.ingest import TokenExpiredError
+
+        with (
+            patch("sys.argv", ["cli"]),
+            patch("oura_ingest.cli.wait_for_db", return_value=MagicMock()),
+            patch("oura_ingest.cli.OuraClient", return_value=MagicMock()),
+            patch("oura_ingest.cli.sync_all", side_effect=TokenExpiredError("bad token")),
+            patch("oura_ingest.cli.schedule") as mock_sched,
+            patch("oura_ingest.cli.cfg") as mock_cfg,
+            patch("signal.signal"),
+        ):
+            mock_cfg.validate = MagicMock()
+            main()  # returns cleanly instead of raising
+
+        # Token expiry on the initial sync must abort before scheduling anything.
+        mock_sched.every.assert_not_called()
+
+
+class TestScheduler:
+    def test_sets_up_schedule_and_runs_loop(self):
+        from oura_ingest.cli import main
+        from oura_ingest.ingest import TokenExpiredError
+
+        engine, client = MagicMock(), MagicMock()
+        fake_stop = MagicMock()
+        # Enter the loop body once, then exit on the second check.
+        fake_stop.is_set.side_effect = [False, True]
+        captured = []
+
+        with (
+            patch("sys.argv", ["cli"]),
+            patch("oura_ingest.cli.wait_for_db", return_value=engine),
+            patch("oura_ingest.cli.OuraClient", return_value=client),
+            patch("oura_ingest.cli.sync_all") as mock_sync,
+            patch("oura_ingest.cli.cfg") as mock_cfg,
+            patch("oura_ingest.cli._stop", fake_stop),
+            patch("oura_ingest.cli.schedule") as mock_sched,
+            patch("signal.signal"),
+        ):
+            mock_cfg.validate = MagicMock()
+            mock_cfg.SYNC_INTERVAL_MINUTES = 30
+            mock_sched.every.return_value.minutes.do.side_effect = lambda fn: captured.append(fn)
+
+            main()
+
+            # Initial sync ran and the periodic job was wired with the configured interval.
+            assert mock_sync.call_count == 1
+            mock_sched.every.assert_called_once_with(30)
+            mock_sched.run_pending.assert_called_once()
+            fake_stop.wait.assert_called_once_with(timeout=10)
+
+            # The scheduled job's happy path triggers another sync.
+            assert captured, "scheduler callback was not registered"
+            job = captured[0]
+            job()
+            assert mock_sync.call_count == 2
+
+            # The scheduled job stops the scheduler when the token expires mid-run.
+            mock_sync.side_effect = TokenExpiredError("expired mid-run")
+            job()
+            fake_stop.set.assert_called_once()
