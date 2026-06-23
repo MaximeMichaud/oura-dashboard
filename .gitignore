@@ -30,6 +30,9 @@ package-lock.json
 # Linter/test caches
 .ruff_cache/
 .pytest_cache/
+.coverage
+coverage.xml
+htmlcov/
 
 # Personal data
 sleep_data.json
