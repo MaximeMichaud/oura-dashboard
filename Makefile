@@ -1,4 +1,4 @@
-.PHONY: up up-full down logs status psql lint format format-check test test-quick audit ci pre-commit clean
+.PHONY: up up-full down logs status psql oauth-setup lint format format-check test test-quick audit ci pre-commit clean
 
 up:
 	docker compose up -d --build
@@ -20,6 +20,13 @@ status:
 
 psql:
 	docker compose exec postgres psql -U oura
+
+# One-shot local OAuth setup. The callback is published on 127.0.0.1:8765 only.
+# To use a different port, set OURA_REDIRECT_URI (e.g. http://localhost:9000/callback)
+# AND update the -p mapping below to match, otherwise Docker won't publish that port.
+oauth-setup:
+	docker compose build ingestion
+	docker compose run --rm --no-deps --user "$$(id -u):$$(id -g)" -p 127.0.0.1:8765:8765 -v "$(CURDIR):/workspace" -w /workspace -e PYTHONPATH=/workspace/ingestion ingestion python -m oura_ingest.cli --oauth-setup --oauth-host 0.0.0.0
 
 # ---------------------------------------------------------------------------
 # CI / quality targets

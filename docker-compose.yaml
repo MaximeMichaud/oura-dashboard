@@ -26,6 +26,13 @@ services:
         condition: service_healthy
     environment:
       OURA_TOKEN: ${OURA_TOKEN:-}
+      OURA_CLIENT_ID: ${OURA_CLIENT_ID:-}
+      OURA_CLIENT_SECRET: ${OURA_CLIENT_SECRET:-}
+      OURA_REFRESH_TOKEN: ${OURA_REFRESH_TOKEN:-}
+      OURA_ACCESS_TOKEN: ${OURA_ACCESS_TOKEN:-}
+      OURA_ACCESS_TOKEN_EXPIRES_AT: ${OURA_ACCESS_TOKEN_EXPIRES_AT:-}
+      OURA_REDIRECT_URI: ${OURA_REDIRECT_URI:-http://localhost:8765/callback}
+      OURA_OAUTH_SCOPES: ${OURA_OAUTH_SCOPES:-email personal daily heartrate tag workout session spo2 ring_configuration stress heart_health}
       POSTGRES_HOST: postgres
       POSTGRES_PORT: 5432
       POSTGRES_DB: ${POSTGRES_DB:-oura}
@@ -82,6 +89,13 @@ services:
       POSTGRES_USER: ${POSTGRES_USER:-oura}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-oura}
       OURA_TOKEN: ${OURA_TOKEN:-}
+      OURA_CLIENT_ID: ${OURA_CLIENT_ID:-}
+      OURA_CLIENT_SECRET: ${OURA_CLIENT_SECRET:-}
+      OURA_REFRESH_TOKEN: ${OURA_REFRESH_TOKEN:-}
+      OURA_ACCESS_TOKEN: ${OURA_ACCESS_TOKEN:-}
+      OURA_ACCESS_TOKEN_EXPIRES_AT: ${OURA_ACCESS_TOKEN_EXPIRES_AT:-}
+      OURA_REDIRECT_URI: ${OURA_REDIRECT_URI:-http://localhost:8765/callback}
+      OURA_OAUTH_SCOPES: ${OURA_OAUTH_SCOPES:-email personal daily heartrate tag workout session spo2 ring_configuration stress heart_health}
       USER_TIMEZONE: ${USER_TIMEZONE:-America/Toronto}
     healthcheck:
       test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8501/_stcore/health')\""]

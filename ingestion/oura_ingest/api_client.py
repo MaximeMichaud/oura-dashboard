@@ -9,7 +9,7 @@ from tenacity import (
     stop_after_attempt,
 )
 
-from .config import cfg
+from .auth import EnvTokenProvider, StaticTokenProvider
 
 log = logging.getLogger(__name__)
 
@@ -45,9 +45,18 @@ def _wait_for_rate_limit(retry_state) -> float:
 
 
 class OuraClient:
-    def __init__(self, token: str | None = None):
+    def __init__(self, token: str | None = None, token_provider=None):
         self.session = requests.Session()
-        self.session.headers["Authorization"] = f"Bearer {token or cfg.OURA_TOKEN}"
+        if token_provider is not None:
+            self.token_provider = token_provider
+        elif token is not None:
+            self.token_provider = StaticTokenProvider(token)
+        else:
+            self.token_provider = EnvTokenProvider()
+
+    def _set_authorization_header(self, force_refresh: bool = False) -> None:
+        token = self.token_provider.get_token(force_refresh=force_refresh)
+        self.session.headers["Authorization"] = f"Bearer {token}"
 
     @retry(
         stop=stop_after_attempt(6),
@@ -57,7 +66,12 @@ class OuraClient:
         reraise=True,
     )
     def _get(self, url: str, params: dict) -> requests.Response:
+        self._set_authorization_header()
         resp = self.session.get(url, params=params, timeout=30)
+        if resp.status_code == 401 and self.token_provider.can_refresh:
+            log.warning("Oura access token was rejected, refreshing OAuth token and retrying once")
+            self._set_authorization_header(force_refresh=True)
+            resp = self.session.get(url, params=params, timeout=30)
         if resp.status_code == 429:
             retry_after = int(float(resp.headers.get("Retry-After", "60")))
             log.warning("Rate limited (429), retry after %ds", retry_after)

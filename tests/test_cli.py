@@ -3,6 +3,8 @@
 import signal
 from unittest.mock import MagicMock, patch
 
+import pytest
+
 
 class TestListEndpoints:
     def test_prints_endpoint_names(self, capsys):
@@ -16,6 +18,24 @@ class TestListEndpoints:
         assert "daily_activity" in captured.out
         assert "daily_readiness" in captured.out
         assert "sleep" in captured.out
+
+
+class TestOAuthSetup:
+    def test_oauth_setup_dispatches_to_helper(self):
+        with (
+            patch(
+                "sys.argv",
+                ["cli", "--oauth-setup", "--oauth-host", "0.0.0.0", "--oauth-port", "9999", "--env-file", ".env"],
+            ),
+            patch("oura_ingest.cli._run_oauth_setup", return_value=0) as mock_setup,
+        ):
+            from oura_ingest.cli import main
+
+            with pytest.raises(SystemExit) as exc:
+                main()
+
+        assert exc.value.code == 0
+        mock_setup.assert_called_once_with(".env", "0.0.0.0", 9999)
 
 
 class TestOnceFlag:

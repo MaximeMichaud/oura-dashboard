@@ -11,6 +11,7 @@ from sqlalchemy import text
 from sqlalchemy.engine import Engine
 
 from .api_client import OuraClient
+from .auth import OAuthError
 from .config import cfg
 from .endpoints import ALL_ENDPOINTS
 
@@ -204,6 +205,12 @@ def sync_all(engine: Engine, client: OuraClient, only_endpoint: str | None = Non
                 _record_sync_failure(engine, ep.name, str(e))
                 _record_sync_history(engine, ep.name, 0, 0, "error", str(e))
                 log.error("[%s] Sync failed", ep.name, exc_info=True)
+            except OAuthError as e:
+                log.critical(
+                    "Oura OAuth token refresh failed (%s). Stopping all syncs; re-run 'make oauth-setup'.",
+                    e,
+                )
+                raise TokenExpiredError("Oura OAuth token refresh failed") from e
             except Exception as e:
                 _record_sync_failure(engine, ep.name, str(e))
                 _record_sync_history(engine, ep.name, 0, 0, "error", str(e))

@@ -19,7 +19,7 @@ st.markdown("Select a page from the sidebar to explore your health data.")
 
 mode = st.session_state.get("provider_mode", "demo")
 if mode == "demo":
-    st.info("Running in demo mode with sample data. Enter your Oura token in the sidebar to see your real data.")
+    st.info("Running in demo mode with sample data. Connect Oura in the sidebar to see your real data.")
 elif mode == "api":
     st.success("Connected to Oura API. Your data is being fetched live.")
 elif mode == "postgresql":

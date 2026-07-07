@@ -464,6 +464,21 @@ class TestSyncAll:
             with pytest.raises(TokenExpiredError):
                 ingest.sync_all(engine, client)
 
+    def test_oauth_error_raises_token_expired_error(self):
+        """A failed OAuth refresh must stop syncing the same way an expired legacy token does."""
+        from oura_ingest import ingest
+        from oura_ingest.auth import OAuthError
+        from oura_ingest.ingest import TokenExpiredError
+
+        engine, client = MagicMock(), MagicMock()
+        with (
+            patch.object(ingest, "ALL_ENDPOINTS", [self._endpoint("ep_a")]),
+            patch.object(ingest, "sync_endpoint", side_effect=OAuthError("invalid_grant")),
+            patch.object(ingest, "_SENTINEL_PATH"),
+        ):
+            with pytest.raises(TokenExpiredError):
+                ingest.sync_all(engine, client)
+
     def test_non_401_http_error_records_failure_then_continues_to_next_endpoint(self):
         from oura_ingest import ingest
 

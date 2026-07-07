@@ -73,7 +73,7 @@ class TestFetchAll:
         resp = Mock(status_code=200)
         resp.json.return_value = {"data": [], "next_token": None}
         resp.raise_for_status = Mock()
-        client.session = Mock()
+        client.session = Mock(headers={})
         client.session.get.return_value = resp
 
         results = list(client.fetch_all("daily_sleep", "2024-01-01", "2024-01-31"))
@@ -85,7 +85,7 @@ class TestFetchAll:
         resp = Mock(status_code=200)
         resp.json.return_value = {"data": records, "next_token": None}
         resp.raise_for_status = Mock()
-        client.session = Mock()
+        client.session = Mock(headers={})
         client.session.get.return_value = resp
 
         results = list(client.fetch_all("daily_sleep", "2024-01-01", "2024-01-31"))
@@ -102,7 +102,7 @@ class TestFetchAll:
         resp2 = Mock(status_code=200, raise_for_status=Mock())
         resp2.json.return_value = {"data": page2, "next_token": None}
 
-        client.session = Mock()
+        client.session = Mock(headers={})
         client.session.get.side_effect = [resp1, resp2]
 
         results = list(client.fetch_all("daily_sleep", "2024-01-01", "2024-01-31"))
@@ -116,11 +116,32 @@ class TestFetchAll:
 
         resp = Mock(status_code=404)
         resp.raise_for_status.side_effect = exc
-        client.session = Mock()
+        client.session = Mock(headers={})
         client.session.get.return_value = resp
 
         results = list(client.fetch_all("nonexistent", "2024-01-01", "2024-01-31"))
         assert results == []
+
+    def test_401_refreshes_oauth_token_once(self):
+        token_provider = Mock()
+        token_provider.can_refresh = True
+        token_provider.get_token.side_effect = ["old-token", "new-token"]
+        client = OuraClient(token_provider=token_provider)
+
+        resp_401 = Mock(status_code=401)
+        resp_401.raise_for_status = Mock()
+        resp_ok = Mock(status_code=200)
+        resp_ok.json.return_value = {"data": [{"day": "2024-01-01"}], "next_token": None}
+        resp_ok.raise_for_status = Mock()
+
+        client.session = Mock(headers={})
+        client.session.get.side_effect = [resp_401, resp_ok]
+
+        results = list(client.fetch_all("daily_sleep", "2024-01-01", "2024-01-31"))
+
+        assert results == [{"day": "2024-01-01"}]
+        assert token_provider.get_token.call_count == 2
+        token_provider.get_token.assert_any_call(force_refresh=True)
 
 
 # --- _wait_for_rate_limit: the custom tenacity wait strategy ---
@@ -160,7 +181,7 @@ class TestGetRateLimit:
 
     @staticmethod
     def _raw_get(client, resp):
-        client.session = Mock()
+        client.session = Mock(headers={})
         client.session.get.return_value = resp
         return OuraClient._get.__wrapped__(client, "https://api.example/x", {})
 
@@ -212,7 +233,7 @@ class TestGetRetryPolicy:
     @staticmethod
     def _client(responses):
         client = OuraClient(token="t")
-        client.session = Mock()
+        client.session = Mock(headers={})
         client.session.get.side_effect = responses
         return client
 
