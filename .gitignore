@@ -52,4 +52,6 @@ Oura-Ring-Sleep-Coach/
 .DS_Store
 Thumbs.db
 CLAUDE.md
-scripts/
+scripts/node_modules/
+!scripts/package.json
+!scripts/package-lock.json

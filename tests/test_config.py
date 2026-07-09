@@ -28,6 +28,7 @@ class TestConfigDefaults:
             "HISTORY_START_DATE",
             "SYNC_INTERVAL_MINUTES",
             "OVERLAP_DAYS",
+            "TIMESERIES_HISTORY_DAYS",
         ]:
             os.environ.pop(key, None)
 
@@ -51,6 +52,7 @@ class TestConfigDefaults:
             assert cfg.HISTORY_START_DATE == "2020-01-01"
             assert cfg.SYNC_INTERVAL_MINUTES == 30
             assert cfg.OVERLAP_DAYS == 2
+            assert cfg.TIMESERIES_HISTORY_DAYS == 90
         finally:
             os.environ.clear()
             os.environ.update(env_backup)
@@ -72,6 +74,7 @@ class TestConfigDefaults:
         os.environ["POSTGRES_PASSWORD"] = "mypass"
         os.environ["SYNC_INTERVAL_MINUTES"] = "60"
         os.environ["OVERLAP_DAYS"] = "5"
+        os.environ["TIMESERIES_HISTORY_DAYS"] = "30"
 
         try:
             from oura_ingest.config import Config
@@ -89,6 +92,7 @@ class TestConfigDefaults:
             assert cfg.POSTGRES_PORT == "5433"
             assert cfg.SYNC_INTERVAL_MINUTES == 60
             assert cfg.OVERLAP_DAYS == 5
+            assert cfg.TIMESERIES_HISTORY_DAYS == 30
         finally:
             os.environ.clear()
             os.environ.update(env_backup)

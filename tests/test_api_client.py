@@ -1,5 +1,6 @@
 """Tests for oura_ingest.api_client (tasks 20, 22)."""
 
+from datetime import datetime, timedelta
 from types import SimpleNamespace
 from unittest.mock import Mock
 
@@ -108,6 +109,61 @@ class TestFetchAll:
         results = list(client.fetch_all("daily_sleep", "2024-01-01", "2024-01-31"))
         assert results == page1 + page2
         assert client.session.get.call_count == 2
+        assert client.session.get.call_args_list[1].args[0].endswith("/daily_sleep")
+        assert client.session.get.call_args_list[1].kwargs["params"] == {"next_token": "abc123"}
+
+    def test_datetime_query_mode(self):
+        client = self._make_client()
+        resp = Mock(status_code=200, raise_for_status=Mock())
+        resp.json.return_value = {"data": [], "next_token": None}
+        client.session = Mock(headers={})
+        client.session.get.return_value = resp
+
+        list(client.fetch_all("heartrate", "2024-01-01", "2024-01-02", query_mode="datetime"))
+
+        params = client.session.get.call_args.kwargs["params"]
+        assert params["start_datetime"].startswith("2024-01-01T00:00:00")
+        assert params["end_datetime"].startswith("2024-01-02T23:59:59")
+        assert "start_date" not in params
+
+    def test_no_range_collection(self):
+        client = self._make_client()
+        resp = Mock(status_code=200, raise_for_status=Mock())
+        resp.json.return_value = {"data": [{"id": "ring"}], "next_token": None}
+        client.session = Mock(headers={})
+        client.session.get.return_value = resp
+
+        results = list(client.fetch_all("ring_configuration", query_mode="none"))
+
+        assert results == [{"id": "ring"}]
+        assert client.session.get.call_args.kwargs["params"] == {}
+
+    def test_singleton_response(self):
+        client = self._make_client()
+        resp = Mock(status_code=200, raise_for_status=Mock())
+        resp.json.return_value = {"id": "user", "age": 35}
+        client.session = Mock(headers={})
+        client.session.get.return_value = resp
+
+        results = list(client.fetch_all("personal_info", query_mode="none", response_mode="single"))
+
+        assert results == [{"id": "user", "age": 35}]
+
+    def test_datetime_range_is_split_into_30_day_chunks(self):
+        client = self._make_client()
+        resp = Mock(status_code=200, raise_for_status=Mock())
+        resp.json.return_value = {"data": [], "next_token": None}
+        client.session = Mock(headers={})
+        client.session.get.return_value = resp
+
+        list(client.fetch_all("heartrate", "2024-01-01", "2024-03-31", query_mode="datetime"))
+
+        assert client.session.get.call_count == 4
+        for call in client.session.get.call_args_list:
+            params = call.kwargs["params"]
+            start = datetime.fromisoformat(params["start_datetime"])
+            end = datetime.fromisoformat(params["end_datetime"])
+            assert end - start <= timedelta(days=30)
 
     def test_404_returns_empty(self):
         client = self._make_client()

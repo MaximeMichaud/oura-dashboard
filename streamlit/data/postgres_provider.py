@@ -525,3 +525,132 @@ class PostgresProvider:
             {"end": end_date},
         )
         return df.iloc[0].to_dict() if not df.empty else {}
+
+    # ------------------------------------------------------------------
+    # Extended API pages
+    # ------------------------------------------------------------------
+    @st.cache_data(ttl=300, show_spinner=False)
+    def heart_rate_summary(_self, start: date, end: date) -> dict:
+        df = query_df(
+            """
+            SELECT (array_agg(bpm ORDER BY timestamp DESC))[1] AS latest,
+                   AVG(bpm)::numeric(5,1) AS average, MIN(bpm) AS minimum, MAX(bpm) AS maximum
+            FROM heartrate WHERE timestamp::date BETWEEN :start AND :end
+            """,
+            {"start": start, "end": end},
+        )
+        return df.iloc[0].to_dict() if not df.empty else {}
+
+    @st.cache_data(ttl=300, show_spinner=False)
+    def heart_rate_series(_self, start: date, end: date) -> pd.DataFrame:
+        return query_df(
+            """
+            SELECT date_bin(interval '15 minutes', timestamp, TIMESTAMPTZ '2000-01-01') AS timestamp,
+                   source, AVG(bpm)::numeric(5,1) AS bpm
+            FROM heartrate WHERE timestamp::date BETWEEN :start AND :end
+            GROUP BY 1, 2 ORDER BY 1
+            """,
+            {"start": start, "end": end},
+        )
+
+    @st.cache_data(ttl=300, show_spinner=False)
+    def heart_rate_daily(_self, start: date, end: date) -> pd.DataFrame:
+        return query_df(
+            """
+            SELECT timestamp::date AS day, MIN(bpm) AS minimum,
+                   AVG(bpm)::numeric(5,1) AS average, MAX(bpm) AS maximum
+            FROM heartrate WHERE timestamp::date BETWEEN :start AND :end
+            GROUP BY 1 ORDER BY 1
+            """,
+            {"start": start, "end": end},
+        )
+
+    @st.cache_data(ttl=300, show_spinner=False)
+    def heart_rate_sources(_self, start: date, end: date) -> pd.DataFrame:
+        return query_df(
+            """
+            SELECT source, COUNT(*) AS count FROM heartrate
+            WHERE timestamp::date BETWEEN :start AND :end GROUP BY source
+            """,
+            {"start": start, "end": end},
+        )
+
+    @st.cache_data(ttl=300, show_spinner=False)
+    def sessions(_self, start: date, end: date) -> pd.DataFrame:
+        return query_df(
+            """
+            SELECT day, type, mood, start_datetime,
+                   EXTRACT(epoch FROM end_datetime - start_datetime) / 60.0 AS duration_minutes
+            FROM session WHERE day BETWEEN :start AND :end ORDER BY start_datetime DESC
+            """,
+            {"start": start, "end": end},
+        )
+
+    @st.cache_data(ttl=300, show_spinner=False)
+    def tags(_self, start: date, end: date) -> pd.DataFrame:
+        return query_df(
+            """
+            SELECT timestamp AS time, 'Tag' AS kind,
+                   COALESCE(tags::text, text) AS label, text AS comment
+            FROM tag WHERE day BETWEEN :start AND :end
+            UNION ALL
+            SELECT start_time, 'Enhanced', COALESCE(custom_name, tag_type_code), comment
+            FROM enhanced_tag WHERE start_day BETWEEN :start AND :end
+            ORDER BY time DESC
+            """,
+            {"start": start, "end": end},
+        )
+
+    @st.cache_data(ttl=300, show_spinner=False)
+    def rest_modes(_self, start: date, end: date) -> pd.DataFrame:
+        return query_df(
+            """
+            SELECT start_day, end_day, start_time, end_time, episodes
+            FROM rest_mode_period WHERE start_day <= :end AND COALESCE(end_day, :end) >= :start
+            ORDER BY start_day DESC
+            """,
+            {"start": start, "end": end},
+        )
+
+    @st.cache_data(ttl=300, show_spinner=False)
+    def battery_series(_self, start: date, end: date) -> pd.DataFrame:
+        return query_df(
+            """
+            SELECT timestamp, level, charging, in_charger FROM ring_battery_level
+            WHERE timestamp::date BETWEEN :start AND :end ORDER BY timestamp
+            """,
+            {"start": start, "end": end},
+        )
+
+    @st.cache_data(ttl=300, show_spinner=False)
+    def ring_configurations(_self) -> pd.DataFrame:
+        return query_df(
+            """
+            SELECT color, design, firmware_version, hardware_type, set_up_at, size
+            FROM ring_configuration ORDER BY set_up_at DESC NULLS LAST
+            """
+        )
+
+    @st.cache_data(ttl=300, show_spinner=False)
+    def personal_profile(_self) -> dict:
+        df = query_df("SELECT age, weight, height, biological_sex FROM personal_info LIMIT 1")
+        return df.iloc[0].to_dict() if not df.empty else {}
+
+    @st.cache_data(ttl=300, show_spinner=False)
+    def ring_summary(_self, start: date, end: date) -> dict:
+        df = query_df(
+            """
+            SELECT (SELECT level FROM ring_battery_level WHERE timestamp::date BETWEEN :start AND :end
+                    ORDER BY timestamp DESC LIMIT 1) AS latest_level,
+                   (SELECT MIN(level) FROM ring_battery_level
+                    WHERE timestamp::date BETWEEN :start AND :end) AS minimum_level,
+                   (SELECT charging FROM ring_battery_level WHERE timestamp::date BETWEEN :start AND :end
+                    ORDER BY timestamp DESC LIMIT 1) AS charging,
+                   (SELECT hardware_type FROM ring_configuration
+                    ORDER BY set_up_at DESC NULLS LAST LIMIT 1) AS hardware_type,
+                   (SELECT firmware_version FROM ring_configuration
+                    ORDER BY set_up_at DESC NULLS LAST LIMIT 1) AS firmware_version
+            """,
+            {"start": start, "end": end},
+        )
+        return df.iloc[0].to_dict() if not df.empty else {}

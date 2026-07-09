@@ -158,6 +158,117 @@ CREATE TABLE IF NOT EXISTS sleep_time (
 );
 CREATE INDEX IF NOT EXISTS idx_sleep_time_day ON sleep_time(day);
 
+CREATE TABLE IF NOT EXISTS heartrate (
+    timestamp           TIMESTAMPTZ PRIMARY KEY,
+    producer_timestamp  BIGINT,
+    timestamp_unix      BIGINT,
+    bpm                 INTEGER NOT NULL,
+    source              TEXT NOT NULL,
+    updated_at          TIMESTAMPTZ DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_heartrate_source_time ON heartrate(source, timestamp DESC);
+
+CREATE TABLE IF NOT EXISTS ring_battery_level (
+    timestamp           TIMESTAMPTZ PRIMARY KEY,
+    producer_timestamp  BIGINT,
+    timestamp_unix      BIGINT,
+    charging            BOOLEAN,
+    in_charger          BOOLEAN,
+    level               INTEGER NOT NULL,
+    updated_at          TIMESTAMPTZ DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_ring_battery_time ON ring_battery_level(timestamp DESC);
+
+CREATE TABLE IF NOT EXISTS ring_configuration (
+    id                  TEXT PRIMARY KEY,
+    color               TEXT,
+    design              TEXT,
+    firmware_version    TEXT,
+    hardware_type       TEXT,
+    set_up_at           TIMESTAMPTZ,
+    size                INTEGER,
+    updated_at          TIMESTAMPTZ DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS session (
+    id                      TEXT PRIMARY KEY,
+    day                     DATE NOT NULL,
+    start_datetime          TIMESTAMPTZ,
+    end_datetime            TIMESTAMPTZ,
+    type                    TEXT,
+    mood                    TEXT,
+    heart_rate              JSONB,
+    heart_rate_variability  JSONB,
+    motion_count            JSONB,
+    updated_at              TIMESTAMPTZ DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_session_day ON session(day DESC);
+
+CREATE TABLE IF NOT EXISTS tag (
+    id          TEXT PRIMARY KEY,
+    day         DATE NOT NULL,
+    timestamp   TIMESTAMPTZ,
+    text        TEXT,
+    tags        JSONB,
+    updated_at  TIMESTAMPTZ DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_tag_day ON tag(day DESC);
+
+CREATE TABLE IF NOT EXISTS enhanced_tag (
+    id              TEXT PRIMARY KEY,
+    tag_type_code   TEXT,
+    start_time      TIMESTAMPTZ,
+    end_time        TIMESTAMPTZ,
+    start_day       DATE NOT NULL,
+    end_day         DATE,
+    comment         TEXT,
+    custom_name     TEXT,
+    updated_at      TIMESTAMPTZ DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_enhanced_tag_day ON enhanced_tag(start_day DESC);
+
+CREATE TABLE IF NOT EXISTS rest_mode_period (
+    id          TEXT PRIMARY KEY,
+    start_day   DATE NOT NULL,
+    end_day     DATE,
+    start_time  TIMESTAMPTZ,
+    end_time    TIMESTAMPTZ,
+    episodes    JSONB,
+    updated_at  TIMESTAMPTZ DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_rest_mode_start_day ON rest_mode_period(start_day DESC);
+
+CREATE TABLE IF NOT EXISTS personal_info (
+    id              TEXT PRIMARY KEY,
+    age             INTEGER,
+    weight          REAL,
+    height          REAL,
+    biological_sex  TEXT,
+    updated_at      TIMESTAMPTZ DEFAULT now()
+);
+
+DO $$ BEGIN
+    IF EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_name = 'heartrate' AND column_name = 'producer_timestamp'
+          AND data_type = 'timestamp with time zone'
+    ) THEN
+        ALTER TABLE heartrate ALTER COLUMN producer_timestamp TYPE BIGINT
+            USING (EXTRACT(epoch FROM producer_timestamp) * 1000)::BIGINT;
+    END IF;
+END $$;
+
+DO $$ BEGIN
+    IF EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_name = 'ring_battery_level' AND column_name = 'producer_timestamp'
+          AND data_type = 'timestamp with time zone'
+    ) THEN
+        ALTER TABLE ring_battery_level ALTER COLUMN producer_timestamp TYPE BIGINT
+            USING (EXTRACT(epoch FROM producer_timestamp) * 1000)::BIGINT;
+    END IF;
+END $$;
+
 CREATE TABLE IF NOT EXISTS sync_log (
     endpoint            TEXT PRIMARY KEY,
     last_sync_date      DATE,

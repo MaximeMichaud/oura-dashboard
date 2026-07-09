@@ -17,13 +17,26 @@ services:
       timeout: 3s
       retries: 10
 
+  migrate:
+    image: postgres:18-alpine
+    restart: "no"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      PGPASSWORD: ${POSTGRES_PASSWORD:-oura}
+    volumes:
+      - ./postgres/init.sql:/schema/init.sql:ro
+    command:
+      ["psql", "-v", "ON_ERROR_STOP=1", "-h", "postgres", "-U", "${POSTGRES_USER:-oura}", "-d", "${POSTGRES_DB:-oura}", "-f", "/schema/init.sql"]
+
   ingestion:
     build: ./ingestion
     profiles: ["ingestion"]
     restart: unless-stopped
     depends_on:
-      postgres:
-        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
     environment:
       OURA_TOKEN: ${OURA_TOKEN:-}
       OURA_CLIENT_ID: ${OURA_CLIENT_ID:-}
@@ -32,7 +45,7 @@ services:
       OURA_ACCESS_TOKEN: ${OURA_ACCESS_TOKEN:-}
       OURA_ACCESS_TOKEN_EXPIRES_AT: ${OURA_ACCESS_TOKEN_EXPIRES_AT:-}
       OURA_REDIRECT_URI: ${OURA_REDIRECT_URI:-http://localhost:8765/callback}
-      OURA_OAUTH_SCOPES: ${OURA_OAUTH_SCOPES:-email personal daily heartrate tag workout session spo2 ring_configuration stress heart_health}
+      OURA_OAUTH_SCOPES: ${OURA_OAUTH_SCOPES:-personal daily heartrate tag workout session spo2 ring_configuration stress heart_health}
       POSTGRES_HOST: postgres
       POSTGRES_PORT: 5432
       POSTGRES_DB: ${POSTGRES_DB:-oura}
@@ -41,6 +54,7 @@ services:
       HISTORY_START_DATE: ${HISTORY_START_DATE:-2020-01-01}
       SYNC_INTERVAL_MINUTES: ${SYNC_INTERVAL_MINUTES:-30}
       OVERLAP_DAYS: ${OVERLAP_DAYS:-2}
+      TIMESERIES_HISTORY_DAYS: ${TIMESERIES_HISTORY_DAYS:-90}
     healthcheck:
       test: ["CMD-SHELL", "find /tmp/oura-last-sync -mmin -90 2>/dev/null || exit 1"]
       interval: 5m
@@ -52,8 +66,8 @@ services:
     image: grafana/grafana:13.1.0
     restart: unless-stopped
     depends_on:
-      postgres:
-        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
     ports:
       - "${GRAFANA_PORT:-3000}:3000"
     environment:
@@ -78,8 +92,8 @@ services:
     build: ./streamlit
     restart: unless-stopped
     depends_on:
-      postgres:
-        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
     ports:
       - "${STREAMLIT_PORT:-8501}:8501"
     environment:
@@ -95,7 +109,7 @@ services:
       OURA_ACCESS_TOKEN: ${OURA_ACCESS_TOKEN:-}
       OURA_ACCESS_TOKEN_EXPIRES_AT: ${OURA_ACCESS_TOKEN_EXPIRES_AT:-}
       OURA_REDIRECT_URI: ${OURA_REDIRECT_URI:-http://localhost:8765/callback}
-      OURA_OAUTH_SCOPES: ${OURA_OAUTH_SCOPES:-email personal daily heartrate tag workout session spo2 ring_configuration stress heart_health}
+      OURA_OAUTH_SCOPES: ${OURA_OAUTH_SCOPES:-personal daily heartrate tag workout session spo2 ring_configuration stress heart_health}
       USER_TIMEZONE: ${USER_TIMEZONE:-America/Toronto}
     healthcheck:
       test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8501/_stcore/health')\""]

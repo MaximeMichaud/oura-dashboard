@@ -131,6 +131,28 @@ class TestSyncLogSchema:
             )
             assert result.scalar() == 1
 
+    def test_extended_api_tables_exist(self, pg_engine):
+        expected = {
+            "heartrate",
+            "ring_battery_level",
+            "ring_configuration",
+            "session",
+            "tag",
+            "enhanced_tag",
+            "rest_mode_period",
+            "personal_info",
+        }
+        with pg_engine.connect() as conn:
+            rows = conn.execute(text("SELECT table_name FROM information_schema.tables WHERE table_schema = 'public'"))
+            assert expected.issubset({row[0] for row in rows})
+
+    def test_personal_info_does_not_store_email(self, pg_engine):
+        with pg_engine.connect() as conn:
+            rows = conn.execute(
+                text("SELECT column_name FROM information_schema.columns WHERE table_name = 'personal_info'")
+            )
+            assert "email" not in {row[0] for row in rows}
+
 
 class TestUpsertBatchRealDb:
     """Validates the production UPSERT path (_upsert_batch) against a real PostgreSQL instead

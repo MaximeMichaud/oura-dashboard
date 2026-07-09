@@ -23,7 +23,7 @@ class Config:
         self.OURA_REDIRECT_URI: str = os.environ.get("OURA_REDIRECT_URI", "http://localhost:8765/callback")
         self.OURA_OAUTH_SCOPES: str = os.environ.get(
             "OURA_OAUTH_SCOPES",
-            "email personal daily heartrate tag workout session spo2 ring_configuration stress heart_health",
+            "personal daily heartrate tag workout session spo2 ring_configuration stress heart_health",
         )
         self.POSTGRES_HOST: str = os.environ.get("POSTGRES_HOST", "localhost")
         self.POSTGRES_PORT: str = os.environ.get("POSTGRES_PORT", "5432")
@@ -33,6 +33,7 @@ class Config:
         self.HISTORY_START_DATE: str = os.environ.get("HISTORY_START_DATE", "2020-01-01")
         self.SYNC_INTERVAL_MINUTES: int = int(os.environ.get("SYNC_INTERVAL_MINUTES", "30"))
         self.OVERLAP_DAYS: int = int(os.environ.get("OVERLAP_DAYS", "2"))
+        self.TIMESERIES_HISTORY_DAYS: int = int(os.environ.get("TIMESERIES_HISTORY_DAYS", "90"))
 
     @property
     def has_legacy_token(self) -> bool:

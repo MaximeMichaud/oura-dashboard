@@ -1,0 +1,49 @@
+{
+  "annotations": {"list": []}, "editable": true, "graphTooltip": 1, "id": null,
+  "links": [{"title": "Overview", "type": "link", "url": "/d/oura-overview", "icon": "dashboard"}, {"title": "Heart Rate", "type": "link", "url": "/d/oura-heart-rate", "icon": "dashboard"}, {"title": "Ring", "type": "link", "url": "/d/oura-ring", "icon": "dashboard"}],
+  "panels": [
+    {
+      "id": 1, "title": "Sessions", "type": "stat", "gridPos": {"x": 0, "y": 0, "w": 8, "h": 4},
+      "datasource": {"type": "grafana-postgresql-datasource", "uid": "oura-pg"},
+      "targets": [{"refId": "A", "format": "table", "rawSql": "SELECT COUNT(*) AS sessions FROM session WHERE day BETWEEN ($__timeFrom()::timestamptz)::date AND ($__timeTo()::timestamptz)::date"}],
+      "fieldConfig": {"defaults": {"color": {"mode": "fixed", "fixedColor": "blue"}}, "overrides": []}, "options": {"colorMode": "value", "graphMode": "none", "reduceOptions": {"calcs": ["lastNotNull"]}}
+    },
+    {
+      "id": 2, "title": "Tags", "type": "stat", "gridPos": {"x": 8, "y": 0, "w": 8, "h": 4},
+      "datasource": {"type": "grafana-postgresql-datasource", "uid": "oura-pg"},
+      "targets": [{"refId": "A", "format": "table", "rawSql": "SELECT (SELECT COUNT(*) FROM tag WHERE day BETWEEN ($__timeFrom()::timestamptz)::date AND ($__timeTo()::timestamptz)::date) + (SELECT COUNT(*) FROM enhanced_tag WHERE start_day BETWEEN ($__timeFrom()::timestamptz)::date AND ($__timeTo()::timestamptz)::date) AS tags"}],
+      "fieldConfig": {"defaults": {"color": {"mode": "fixed", "fixedColor": "purple"}}, "overrides": []}, "options": {"colorMode": "value", "graphMode": "none", "reduceOptions": {"calcs": ["lastNotNull"]}}
+    },
+    {
+      "id": 3, "title": "Rest Mode Periods", "type": "stat", "gridPos": {"x": 16, "y": 0, "w": 8, "h": 4},
+      "datasource": {"type": "grafana-postgresql-datasource", "uid": "oura-pg"},
+      "targets": [{"refId": "A", "format": "table", "rawSql": "SELECT COUNT(*) AS periods FROM rest_mode_period WHERE start_day <= ($__timeTo()::timestamptz)::date AND COALESCE(end_day, ($__timeTo()::timestamptz)::date) >= ($__timeFrom()::timestamptz)::date"}],
+      "fieldConfig": {"defaults": {"color": {"mode": "fixed", "fixedColor": "orange"}}, "overrides": []}, "options": {"colorMode": "value", "graphMode": "none", "reduceOptions": {"calcs": ["lastNotNull"]}}
+    },
+    {
+      "id": 4, "title": "Sessions by Type", "type": "piechart", "gridPos": {"x": 0, "y": 4, "w": 8, "h": 8},
+      "datasource": {"type": "grafana-postgresql-datasource", "uid": "oura-pg"},
+      "targets": [{"refId": "A", "format": "table", "rawSql": "SELECT COALESCE(type, 'unknown') AS type, COUNT(*) AS sessions FROM session WHERE day BETWEEN ($__timeFrom()::timestamptz)::date AND ($__timeTo()::timestamptz)::date GROUP BY type"}],
+      "fieldConfig": {"defaults": {}, "overrides": []}, "options": {"displayLabels": ["name", "percent"], "pieType": "donut", "legend": {"displayMode": "list", "placement": "bottom"}, "reduceOptions": {"calcs": ["lastNotNull"], "values": true}}
+    },
+    {
+      "id": 5, "title": "Recent Sessions", "type": "table", "gridPos": {"x": 8, "y": 4, "w": 16, "h": 8},
+      "datasource": {"type": "grafana-postgresql-datasource", "uid": "oura-pg"},
+      "targets": [{"refId": "A", "format": "table", "rawSql": "SELECT day AS \"Date\", type AS \"Type\", mood AS \"Mood\", start_datetime AS \"Started\", ROUND((EXTRACT(epoch FROM end_datetime - start_datetime) / 60.0)::numeric, 1) AS \"Minutes\" FROM session WHERE day BETWEEN ($__timeFrom()::timestamptz)::date AND ($__timeTo()::timestamptz)::date ORDER BY start_datetime DESC LIMIT 100"}],
+      "fieldConfig": {"defaults": {"custom": {"align": "auto"}}, "overrides": []}, "options": {"showHeader": true, "cellHeight": "sm"}
+    },
+    {
+      "id": 6, "title": "Tags and Notes", "type": "table", "gridPos": {"x": 0, "y": 12, "w": 12, "h": 9},
+      "datasource": {"type": "grafana-postgresql-datasource", "uid": "oura-pg"},
+      "targets": [{"refId": "A", "format": "table", "rawSql": "SELECT timestamp AS \"Time\", 'Tag' AS \"Format\", COALESCE(tags::text, text) AS \"Label\", text AS \"Comment\" FROM tag WHERE day BETWEEN ($__timeFrom()::timestamptz)::date AND ($__timeTo()::timestamptz)::date UNION ALL SELECT start_time, 'Enhanced', COALESCE(custom_name, tag_type_code), comment FROM enhanced_tag WHERE start_day BETWEEN ($__timeFrom()::timestamptz)::date AND ($__timeTo()::timestamptz)::date ORDER BY \"Time\" DESC"}],
+      "fieldConfig": {"defaults": {"custom": {"align": "auto"}}, "overrides": []}, "options": {"showHeader": true, "cellHeight": "sm"}
+    },
+    {
+      "id": 7, "title": "Rest Mode History", "type": "table", "gridPos": {"x": 12, "y": 12, "w": 12, "h": 9},
+      "datasource": {"type": "grafana-postgresql-datasource", "uid": "oura-pg"},
+      "targets": [{"refId": "A", "format": "table", "rawSql": "SELECT start_day AS \"Start\", end_day AS \"End\", COALESCE(end_day, CURRENT_DATE) - start_day + 1 AS \"Days\", jsonb_array_length(COALESCE(episodes, '[]'::jsonb)) AS \"Episodes\" FROM rest_mode_period WHERE start_day <= ($__timeTo()::timestamptz)::date AND COALESCE(end_day, ($__timeTo()::timestamptz)::date) >= ($__timeFrom()::timestamptz)::date ORDER BY start_day DESC"}],
+      "fieldConfig": {"defaults": {"custom": {"align": "auto"}}, "overrides": []}, "options": {"showHeader": true, "cellHeight": "sm"}
+    }
+  ],
+  "refresh": "5m", "schemaVersion": 39, "tags": ["oura"], "templating": {"list": []}, "time": {"from": "now-90d", "to": "now"}, "timepicker": {}, "timezone": "browser", "title": "Oura - Context", "uid": "oura-context", "version": 1
+}

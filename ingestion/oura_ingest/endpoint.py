@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Callable
+from typing import Callable, Literal
 
 
 @dataclass(frozen=True)
@@ -9,6 +9,9 @@ class Endpoint:
     table: str
     pk: str
     transform: Callable[[dict], dict]
+    query_mode: Literal["date", "datetime", "none"] = "date"
+    response_mode: Literal["collection", "single"] = "collection"
+    initial_history_days: int | None = None
 
 
 def simple_endpoint(name: str, pk: str, transform: Callable[[dict], dict]) -> Endpoint:
