@@ -190,13 +190,13 @@ jobs:
       - name: Start the full stack with docker compose
         run: docker compose up -d --wait --wait-timeout 120
 
-      - name: Verify schema auto-applied on first boot (13 tables)
+      - name: Verify schema auto-applied on first boot (22 tables)
         run: |
           TABLE_COUNT=$(docker compose exec -T postgres \
             psql -U oura -d oura -tAc \
             "SELECT count(*) FROM information_schema.tables WHERE table_schema = 'public' AND table_type = 'BASE TABLE'")
           echo "Tables found: $TABLE_COUNT"
-          [ "$TABLE_COUNT" -eq 13 ] || { echo "Expected 13 tables, got $TABLE_COUNT"; exit 1; }
+          [ "$TABLE_COUNT" -eq 22 ] || { echo "Expected 22 tables, got $TABLE_COUNT"; exit 1; }
 
       - name: Verify indexes
         run: |
