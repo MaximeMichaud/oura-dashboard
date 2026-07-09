@@ -14,6 +14,8 @@ from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
 from .auth import (
+    EnvTokenProvider,
+    OAuthError,
     build_authorization_url,
     exchange_authorization_code,
     find_env_file,
@@ -209,7 +211,17 @@ def main():
 
     log.info("Oura ingestion starting")
     engine = wait_for_db()
-    client = OuraClient()
+    token_store = None
+    oauth_client = (cfg.OURA_CLIENT_ID, cfg.OURA_CLIENT_SECRET)
+    if all(isinstance(value, str) and value for value in oauth_client):
+        from .token_store import PostgresOAuthTokenStore
+
+        token_store = PostgresOAuthTokenStore(engine, cfg.OURA_CLIENT_SECRET)
+    try:
+        client = OuraClient(token_provider=EnvTokenProvider(config=cfg, token_store=token_store))
+    except OAuthError as exc:
+        log.critical("Could not initialize persisted OAuth state: %s", exc)
+        return
 
     # Initial sync
     log.info("Running initial sync...")

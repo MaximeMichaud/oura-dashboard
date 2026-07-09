@@ -6,6 +6,9 @@ EXPECTED_DASHBOARDS = {
     "03-readiness.json": "oura-readiness",
     "04-activity.json": "oura-activity",
     "05-body.json": "oura-body",
+    "06-heart-rate.json": "oura-heart-rate",
+    "07-context.json": "oura-context",
+    "08-ring.json": "oura-ring",
 }
 
 DATASOURCE_UID = "oura-pg"
@@ -86,6 +89,9 @@ class TestPanelIntegrity:
             "oura-readiness": 6,
             "oura-activity": 8,
             "oura-body": 8,
+            "oura-heart-rate": 7,
+            "oura-context": 7,
+            "oura-ring": 8,
         }
         for dash in loaded_dashboards:
             uid = dash["uid"]

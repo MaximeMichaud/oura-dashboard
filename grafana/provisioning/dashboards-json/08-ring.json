@@ -1,0 +1,47 @@
+{
+  "annotations": {"list": []}, "editable": true, "graphTooltip": 1, "id": null,
+  "links": [{"title": "Overview", "type": "link", "url": "/d/oura-overview", "icon": "dashboard"}, {"title": "Heart Rate", "type": "link", "url": "/d/oura-heart-rate", "icon": "dashboard"}, {"title": "Context", "type": "link", "url": "/d/oura-context", "icon": "dashboard"}],
+  "panels": [
+    {
+      "id": 1, "title": "Latest Battery", "type": "stat", "gridPos": {"x": 0, "y": 0, "w": 6, "h": 4},
+      "datasource": {"type": "grafana-postgresql-datasource", "uid": "oura-pg"}, "targets": [{"refId": "A", "format": "table", "rawSql": "SELECT level FROM ring_battery_level WHERE $__timeFilter(timestamp) ORDER BY timestamp DESC LIMIT 1"}],
+      "fieldConfig": {"defaults": {"unit": "percent", "min": 0, "max": 100, "color": {"mode": "thresholds"}, "thresholds": {"mode": "absolute", "steps": [{"value": null, "color": "red"}, {"value": 20, "color": "orange"}, {"value": 50, "color": "green"}]}}, "overrides": []}, "options": {"colorMode": "value", "graphMode": "area", "reduceOptions": {"calcs": ["lastNotNull"]}}
+    },
+    {
+      "id": 2, "title": "Range Minimum", "type": "stat", "gridPos": {"x": 6, "y": 0, "w": 6, "h": 4},
+      "datasource": {"type": "grafana-postgresql-datasource", "uid": "oura-pg"}, "targets": [{"refId": "A", "format": "table", "rawSql": "SELECT MIN(level) AS level FROM ring_battery_level WHERE $__timeFilter(timestamp)"}],
+      "fieldConfig": {"defaults": {"unit": "percent", "color": {"mode": "fixed", "fixedColor": "orange"}}, "overrides": []}, "options": {"colorMode": "value", "graphMode": "none", "reduceOptions": {"calcs": ["lastNotNull"]}}
+    },
+    {
+      "id": 3, "title": "Charging", "type": "stat", "gridPos": {"x": 12, "y": 0, "w": 6, "h": 4},
+      "datasource": {"type": "grafana-postgresql-datasource", "uid": "oura-pg"}, "targets": [{"refId": "A", "format": "table", "rawSql": "SELECT CASE WHEN charging THEN 1 ELSE 0 END AS charging FROM ring_battery_level WHERE $__timeFilter(timestamp) ORDER BY timestamp DESC LIMIT 1"}],
+      "fieldConfig": {"defaults": {"mappings": [{"type": "value", "options": {"0": {"text": "No", "color": "green"}, "1": {"text": "Yes", "color": "blue"}}}], "color": {"mode": "thresholds"}}, "overrides": []}, "options": {"colorMode": "value", "graphMode": "none", "reduceOptions": {"calcs": ["lastNotNull"]}}
+    },
+    {
+      "id": 4, "title": "Current Ring", "type": "stat", "gridPos": {"x": 18, "y": 0, "w": 6, "h": 4},
+      "datasource": {"type": "grafana-postgresql-datasource", "uid": "oura-pg"}, "targets": [{"refId": "A", "format": "table", "rawSql": "SELECT CASE hardware_type WHEN 'gen1' THEN 1 WHEN 'gen2' THEN 2 WHEN 'gen2m' THEN 2 WHEN 'gen3' THEN 3 WHEN 'gen4' THEN 4 WHEN 'or5' THEN 5 END AS generation FROM ring_configuration ORDER BY set_up_at DESC NULLS LAST LIMIT 1"}],
+      "fieldConfig": {"defaults": {"mappings": [{"type": "value", "options": {"1": {"text": "Oura Ring 1"}, "2": {"text": "Oura Ring 2"}, "3": {"text": "Oura Ring 3"}, "4": {"text": "Oura Ring 4"}, "5": {"text": "Oura Ring 5"}}}], "color": {"mode": "fixed", "fixedColor": "blue"}}, "overrides": []}, "options": {"colorMode": "value", "graphMode": "none", "reduceOptions": {"calcs": ["lastNotNull"]}}
+    },
+    {
+      "id": 5, "title": "Battery Level", "type": "timeseries", "gridPos": {"x": 0, "y": 4, "w": 16, "h": 9},
+      "datasource": {"type": "grafana-postgresql-datasource", "uid": "oura-pg"}, "targets": [{"refId": "A", "format": "time_series", "rawSql": "SELECT timestamp AS time, level FROM ring_battery_level WHERE $__timeFilter(timestamp) ORDER BY timestamp"}],
+      "fieldConfig": {"defaults": {"unit": "percent", "min": 0, "max": 100, "color": {"mode": "fixed", "fixedColor": "green"}, "custom": {"drawStyle": "line", "lineWidth": 2, "showPoints": "never"}}, "overrides": []}, "options": {"legend": {"displayMode": "hidden", "placement": "bottom", "showLegend": false}, "tooltip": {"mode": "single"}}
+    },
+    {
+      "id": 6, "title": "Charging Samples", "type": "timeseries", "gridPos": {"x": 16, "y": 4, "w": 8, "h": 9},
+      "datasource": {"type": "grafana-postgresql-datasource", "uid": "oura-pg"}, "targets": [{"refId": "A", "format": "time_series", "rawSql": "SELECT timestamp AS time, CASE WHEN charging OR in_charger THEN 1 ELSE 0 END AS charging FROM ring_battery_level WHERE $__timeFilter(timestamp) ORDER BY timestamp"}],
+      "fieldConfig": {"defaults": {"min": 0, "max": 1, "color": {"mode": "fixed", "fixedColor": "blue"}, "mappings": [{"type": "value", "options": {"0": {"text": "Not charging"}, "1": {"text": "Charging"}}}], "custom": {"drawStyle": "line", "lineInterpolation": "stepAfter", "lineWidth": 2, "showPoints": "never"}}, "overrides": []}, "options": {"legend": {"displayMode": "hidden", "placement": "bottom", "showLegend": false}, "tooltip": {"mode": "single"}}
+    },
+    {
+      "id": 7, "title": "Ring Configurations", "type": "table", "gridPos": {"x": 0, "y": 13, "w": 15, "h": 8},
+      "datasource": {"type": "grafana-postgresql-datasource", "uid": "oura-pg"}, "targets": [{"refId": "A", "format": "table", "rawSql": "SELECT set_up_at AS \"Set Up\", hardware_type AS \"Hardware\", design AS \"Design\", color AS \"Color\", firmware_version AS \"Firmware\", size AS \"Size\" FROM ring_configuration ORDER BY set_up_at DESC NULLS LAST"}],
+      "fieldConfig": {"defaults": {"custom": {"align": "auto"}}, "overrides": [{"matcher": {"id": "byName", "options": "Set Up"}, "properties": [{"id": "custom.width", "value": 180}]}]}, "options": {"showHeader": true, "cellHeight": "sm"}
+    },
+    {
+      "id": 8, "title": "Profile", "type": "table", "gridPos": {"x": 15, "y": 13, "w": 9, "h": 8},
+      "datasource": {"type": "grafana-postgresql-datasource", "uid": "oura-pg"}, "targets": [{"refId": "A", "format": "table", "rawSql": "SELECT age AS \"Age\", ROUND((height * 100)::numeric, 0) AS \"Height cm\", ROUND(weight::numeric, 1) AS \"Weight kg\", biological_sex AS \"Biological Sex\" FROM personal_info LIMIT 1"}],
+      "fieldConfig": {"defaults": {"custom": {"align": "auto"}}, "overrides": []}, "options": {"showHeader": true, "cellHeight": "sm"}
+    }
+  ],
+  "refresh": "5m", "schemaVersion": 39, "tags": ["oura"], "templating": {"list": []}, "time": {"from": "now-30d", "to": "now"}, "timepicker": {}, "timezone": "browser", "title": "Oura - Ring", "uid": "oura-ring", "version": 1
+}

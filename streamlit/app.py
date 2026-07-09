@@ -33,4 +33,7 @@ st.markdown("""
 - **Readiness** - Score, temperature, all contributors
 - **Activity** - Steps, calories, MET, workouts, targets
 - **Body** - SpO2, stress vs recovery, resilience, cardiovascular age, VO2 Max
+- **Heart Rate** - Samples, sources, and daily range
+- **Context** - Sessions, tags, and rest mode periods
+- **Ring** - Battery, hardware configuration, and local profile
 """)

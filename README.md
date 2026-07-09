@@ -9,8 +9,8 @@ Built with **[Oura API v2](https://cloud.ouraring.com/v2/docs)**, **PostgreSQL 1
 ## Stack
 
 - **Oura API v2** - personal health data
-- **PostgreSQL 18** - persistent storage (13 tables + 1 materialized view, auto-initialized)
-- **Grafana 13** - 5 pre-provisioned dashboards (no setup required)
+- **PostgreSQL 18** - persistent storage (22 tables + 1 materialized view, auto-migrated)
+- **Grafana 13** - 8 pre-provisioned dashboards (no setup required)
 - **Python 3.14** - ingestion service with incremental sync, retry logic, and CLI flags
 
 ## Prerequisites
@@ -56,7 +56,7 @@ Create an Oura API application at [cloud.ouraring.com/oauth/applications](https:
 Select the scopes the setup helper requests by default:
 
 ```text
-email personal daily heartrate tag workout session spo2 ring_configuration stress heart_health
+personal daily heartrate tag workout session spo2 ring_configuration stress heart_health
 ```
 
 The scopes you grant on the Oura application must include every scope the helper requests, otherwise authorization fails. To request fewer, set `OURA_OAUTH_SCOPES` to your reduced list and grant exactly those.
@@ -68,6 +68,12 @@ make oauth-setup
 ```
 
 The helper prints an Oura authorization URL, waits on `http://localhost:8765/callback` (bound to localhost only), exchanges the callback code, tests the API, and writes OAuth values to `.env` without removing `OURA_TOKEN`.
+
+Oura refresh tokens are single-use. After the first automatic refresh, ingestion stores the replacement token encrypted
+in PostgreSQL using `pgcrypto` and the OAuth client secret. Values in `.env` remain the bootstrap and recovery source;
+rotated tokens are never written back to the repository or stored as plaintext in the database. In PostgreSQL mode,
+ingestion is the only process allowed to rotate this token, preventing Streamlit from consuming the same token during a
+temporary database outage.
 
 If you are not using Docker for setup, install the ingestion dependencies first, then run the helper:
 
@@ -89,7 +95,7 @@ The ingestion service will start syncing your data immediately (full history fro
 Navigate to [http://localhost:3000](http://localhost:3000) - no login required.
 Streamlit is available at [http://localhost:8501](http://localhost:8501).
 
-5 dashboards are available:
+8 dashboards are available:
 
 | Dashboard | Content |
 |---|---|
@@ -98,6 +104,9 @@ Streamlit is available at [http://localhost:8501](http://localhost:8501).
 | **Readiness** | Score, temperature, contributors |
 | **Activity** | Steps, calories, MET, breakdown, target vs actual |
 | **Body** | SpO2, stress vs recovery, resilience, cardiovascular age, VO2 Max |
+| **Heart Rate** | Heart rate samples, source distribution, and daily ranges |
+| **Context** | Sessions, legacy and enhanced tags, and rest mode periods |
+| **Ring** | Battery history, ring configuration, firmware, and a profile without email |
 
 ## Configuration
 
@@ -116,6 +125,7 @@ All settings are in `.env`:
 | `HISTORY_START_DATE` | `2020-01-01` | Start date for initial import |
 | `SYNC_INTERVAL_MINUTES` | `30` | Sync frequency |
 | `OVERLAP_DAYS` | `2` | Days of overlap for incremental sync |
+| `TIMESERIES_HISTORY_DAYS` | `90` | Initial history imported for heart rate and battery time series |
 | `LOG_LEVEL` | `INFO` | Python logging level |
 | `GRAFANA_PORT` | `3000` | Grafana port |
 | `GF_ADMIN_USER` | `admin` | Grafana admin username |
@@ -135,6 +145,18 @@ make down      # docker compose down
 make logs      # docker compose logs -f
 make status    # show service status + last sync per endpoint
 make psql      # open psql shell to the database
+make migrate   # apply the idempotent schema to an existing database volume
+```
+
+## UI Validation
+
+The headless Playwright validators capture the provisioned dashboards and Streamlit pages at desktop and mobile
+sizes. Screenshots are written to `/tmp`.
+
+```bash
+npm install --prefix scripts
+node scripts/validate-dashboards.mjs
+node scripts/validate-streamlit.mjs
 ```
 
 ## CLI Flags
@@ -167,6 +189,21 @@ python -m oura_ingest.cli --once --endpoint daily_sleep
 | `vO2_max` | `daily_vo2_max` | `day` |
 | `workout` | `workout` | `id` |
 | `sleep_time` | `sleep_time` | `id` |
+| `heartrate` | `heartrate` | `timestamp` |
+| `ring_battery_level` | `ring_battery_level` | `timestamp` |
+| `ring_configuration` | `ring_configuration` | `id` |
+| `session` | `session` | `id` |
+| `tag` | `tag` | `id` |
+| `enhanced_tag` | `enhanced_tag` | `id` |
+| `rest_mode_period` | `rest_mode_period` | `id` |
+| `personal_info` | `personal_info` | `id` |
+
+Heart rate and battery imports are split into requests of at most 30 days, as required by the Oura API. The initial
+depth defaults to 90 days and remains configurable. `personal_info` deliberately excludes the email field.
+`rest_mode_period` is fully refetched on every sync so an open period can receive its eventual end date.
+
+Oura features such as Lab Uploads, Locate, metabolic lab results, meals, and GPS routes are not exposed by a public
+read endpoint in the current [OpenAPI 1.35 specification](https://cloud.ouraring.com/v2/static/json/openapi-1.35.json).
 
 ## Troubleshooting
 

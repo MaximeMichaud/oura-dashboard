@@ -634,3 +634,123 @@ class DemoProvider:
         i = self._safe_idx(end_date)
         d = self._data
         return {"spo2": d["spo2"][i], "bdi": d["bdi"][i]}
+
+    # ------------------------------------------------------------------
+    # Extended API pages
+    # ------------------------------------------------------------------
+    def _demo_heart_rate(self, start: date, end: date) -> pd.DataFrame:
+        rng = random.Random(self._seed + 300)
+        rows = []
+        cursor = pd.Timestamp(start)
+        finish = pd.Timestamp(end) + pd.Timedelta(days=1)
+        while cursor < finish:
+            hour = cursor.hour
+            source = "workout" if hour in (7, 17) and rng.random() < 0.4 else ("rest" if hour < 7 else "awake")
+            baseline = 125 if source == "workout" else (55 if source == "rest" else 72)
+            rows.append({"timestamp": cursor, "bpm": max(42, int(rng.gauss(baseline, 8))), "source": source})
+            cursor += pd.Timedelta(minutes=15)
+        return pd.DataFrame(rows)
+
+    def heart_rate_summary(self, start: date, end: date) -> dict:
+        df = self._demo_heart_rate(start, end)
+        return {
+            "latest": int(df.iloc[-1]["bpm"]),
+            "average": round(df["bpm"].mean(), 1),
+            "minimum": int(df["bpm"].min()),
+            "maximum": int(df["bpm"].max()),
+        }
+
+    def heart_rate_series(self, start: date, end: date) -> pd.DataFrame:
+        return self._demo_heart_rate(start, end)
+
+    def heart_rate_daily(self, start: date, end: date) -> pd.DataFrame:
+        df = self._demo_heart_rate(start, end)
+        df["day"] = df["timestamp"].dt.date
+        return df.groupby("day", as_index=False)["bpm"].agg(minimum="min", average="mean", maximum="max")
+
+    def heart_rate_sources(self, start: date, end: date) -> pd.DataFrame:
+        return (
+            self._demo_heart_rate(start, end).groupby("source", as_index=False).size().rename(columns={"size": "count"})
+        )
+
+    def sessions(self, start: date, end: date) -> pd.DataFrame:
+        days = list(self._range_indices(start, end))[::10]
+        return pd.DataFrame(
+            [
+                {
+                    "day": self._data["days"][i],
+                    "type": "meditation" if i % 20 else "breathing",
+                    "mood": "good",
+                    "start_datetime": pd.Timestamp(self._data["days"][i]) + pd.Timedelta(hours=20),
+                    "duration_minutes": 10 + i % 15,
+                }
+                for i in days
+            ]
+        )
+
+    def tags(self, start: date, end: date) -> pd.DataFrame:
+        days = list(self._range_indices(start, end))[::7]
+        return pd.DataFrame(
+            [
+                {
+                    "time": pd.Timestamp(self._data["days"][i]) + pd.Timedelta(hours=9),
+                    "kind": "Enhanced",
+                    "label": "caffeine" if i % 2 else "late_meal",
+                    "comment": None,
+                }
+                for i in days
+            ]
+        )
+
+    def rest_modes(self, start: date, end: date) -> pd.DataFrame:
+        midpoint = max(start, end - timedelta(days=14))
+        return pd.DataFrame(
+            [
+                {
+                    "start_day": midpoint,
+                    "end_day": midpoint + timedelta(days=2),
+                    "start_time": None,
+                    "end_time": None,
+                    "episodes": [],
+                }
+            ]
+        )
+
+    def battery_series(self, start: date, end: date) -> pd.DataFrame:
+        timestamps = pd.date_range(start, end + timedelta(days=1), freq="6h", inclusive="left")
+        levels = [100 - (i * 4) % 92 for i in range(len(timestamps))]
+        return pd.DataFrame(
+            {
+                "timestamp": timestamps,
+                "level": levels,
+                "charging": [level < 18 for level in levels],
+                "in_charger": [level < 18 for level in levels],
+            }
+        )
+
+    def ring_configurations(self) -> pd.DataFrame:
+        return pd.DataFrame(
+            [
+                {
+                    "color": "silver",
+                    "design": "horizon",
+                    "firmware_version": "3.2.1",
+                    "hardware_type": "gen4",
+                    "set_up_at": self._start,
+                    "size": 10,
+                }
+            ]
+        )
+
+    def personal_profile(self) -> dict:
+        return {"age": 35, "weight": 75.0, "height": 1.78, "biological_sex": "male"}
+
+    def ring_summary(self, start: date, end: date) -> dict:
+        battery = self.battery_series(start, end)
+        return {
+            "latest_level": int(battery.iloc[-1]["level"]),
+            "minimum_level": int(battery["level"].min()),
+            "charging": bool(battery.iloc[-1]["charging"]),
+            "hardware_type": "gen4",
+            "firmware_version": "3.2.1",
+        }

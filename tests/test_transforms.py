@@ -2,12 +2,20 @@ import json
 
 from oura_ingest.endpoints.activity import _transform as transform_activity
 from oura_ingest.endpoints.cardiovascular import _transform as transform_cardiovascular
+from oura_ingest.endpoints.enhanced_tag import _transform as transform_enhanced_tag
+from oura_ingest.endpoints.heartrate import _transform as transform_heartrate
+from oura_ingest.endpoints.personal_info import _transform as transform_personal_info
 from oura_ingest.endpoints.readiness import _transform as transform_readiness
 from oura_ingest.endpoints.resilience import _transform as transform_resilience
+from oura_ingest.endpoints.rest_mode_period import _transform as transform_rest_mode_period
+from oura_ingest.endpoints.ring_battery_level import _transform as transform_ring_battery
+from oura_ingest.endpoints.ring_configuration import _transform as transform_ring_configuration
+from oura_ingest.endpoints.session import _transform as transform_session
 from oura_ingest.endpoints.sleep import _transform_daily_sleep, _transform_sleep
 from oura_ingest.endpoints.sleep_time import _transform as transform_sleep_time
 from oura_ingest.endpoints.spo2 import _transform as transform_spo2
 from oura_ingest.endpoints.stress import _transform as transform_stress
+from oura_ingest.endpoints.tag import _transform as transform_tag
 from oura_ingest.endpoints.vo2_max import _transform as transform_vo2_max
 from oura_ingest.endpoints.workout import _transform as transform_workout
 
@@ -308,3 +316,73 @@ class TestSleepTimeTransform:
         result = transform_sleep_time(rec)
         assert result["optimal_bedtime_start"] is None
         assert result["optimal_bedtime_end"] is None
+
+
+class TestExtendedApiTransforms:
+    def test_heartrate_supports_live_and_documented_timestamps(self):
+        result = transform_heartrate(
+            {
+                "timestamp": "2026-07-09T12:00:00Z",
+                "producer_timestamp": 1783598402000,
+                "timestamp_unix": 1783598400000,
+                "bpm": 74,
+                "source": "awake",
+            }
+        )
+        assert result["bpm"] == 74
+        assert result["producer_timestamp"] == 1783598402000
+        assert result["timestamp_unix"] == 1783598400000
+
+    def test_ring_battery(self):
+        result = transform_ring_battery(
+            {"timestamp": "2026-07-09T12:00:00Z", "level": 81, "charging": False, "in_charger": False}
+        )
+        assert result["level"] == 81
+        assert result["timestamp_unix"] is None
+
+    def test_ring_configuration_gen4(self):
+        result = transform_ring_configuration(
+            {"id": "ring", "hardware_type": "gen4", "firmware_version": "3.2.1", "size": 10}
+        )
+        assert result["hardware_type"] == "gen4"
+        assert result["size"] == 10
+
+    def test_session_serializes_samples(self):
+        result = transform_session(
+            {
+                "id": "session",
+                "day": "2026-07-09",
+                "type": "meditation",
+                "heart_rate": {"interval": 5, "items": [60, 61]},
+            }
+        )
+        assert json.loads(result["heart_rate"])["items"] == [60, 61]
+        assert result["heart_rate_variability"] is None
+
+    def test_tag_serializes_tags(self):
+        result = transform_tag(
+            {"id": "tag", "day": "2026-07-09", "timestamp": "2026-07-09T09:00:00", "tags": ["caffeine"]}
+        )
+        assert json.loads(result["tags"]) == ["caffeine"]
+
+    def test_enhanced_tag(self):
+        result = transform_enhanced_tag({"id": "tag2", "start_day": "2026-07-09", "tag_type_code": "custom"})
+        assert result["tag_type_code"] == "custom"
+
+    def test_rest_mode_serializes_episodes(self):
+        result = transform_rest_mode_period({"id": "rest", "start_day": "2026-07-01", "episodes": [{"tags": ["sick"]}]})
+        assert json.loads(result["episodes"])[0]["tags"] == ["sick"]
+
+    def test_personal_info_omits_email(self):
+        result = transform_personal_info(
+            {
+                "id": "user",
+                "age": 35,
+                "weight": 75,
+                "height": 1.78,
+                "biological_sex": "male",
+                "email": "private@example.com",
+            }
+        )
+        assert result["age"] == 35
+        assert "email" not in result

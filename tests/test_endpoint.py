@@ -22,6 +22,10 @@ class TestEndpoint:
         assert ep.table == "daily_sleep"
         assert ep.pk == "day"
         assert ep.transform is _identity
+        assert ep.query_mode == "date"
+        assert ep.response_mode == "collection"
+        assert ep.initial_history_days is None
+        assert ep.always_full_sync is False
 
     def test_frozen_immutability(self):
         ep = Endpoint(name="test", api_path="test", table="test", pk="id", transform=_identity)

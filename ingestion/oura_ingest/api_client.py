@@ -1,4 +1,5 @@
 import logging
+from datetime import date, datetime, time, timedelta, timezone
 from typing import Iterator
 
 import requests
@@ -79,10 +80,52 @@ class OuraClient:
         resp.raise_for_status()
         return resp
 
-    def fetch_all(self, endpoint: str, start_date: str, end_date: str) -> Iterator[dict]:
+    @staticmethod
+    def _range_params(start_date: str | None, end_date: str | None, query_mode: str) -> dict:
+        if query_mode == "none":
+            return {}
+        if query_mode == "date":
+            return {"start_date": start_date, "end_date": end_date}
+        if query_mode != "datetime":
+            raise ValueError(f"Unknown query mode: {query_mode}")
+
+        start = datetime.combine(date.fromisoformat(start_date), time.min, tzinfo=timezone.utc)
+        end_day = date.fromisoformat(end_date)
+        end = (
+            datetime.now(timezone.utc)
+            if end_day == date.today()
+            else datetime.combine(end_day, time.max, tzinfo=timezone.utc)
+        )
+        return {"start_datetime": start.isoformat(), "end_datetime": end.isoformat()}
+
+    def fetch_all(
+        self,
+        endpoint: str,
+        start_date: str | None = None,
+        end_date: str | None = None,
+        *,
+        query_mode: str = "date",
+        response_mode: str = "collection",
+    ) -> Iterator[dict]:
         """Paginate through an Oura v2 endpoint, yielding each record."""
+        if query_mode == "datetime" and start_date and end_date:
+            current = date.fromisoformat(start_date)
+            final = date.fromisoformat(end_date)
+            if (final - current).days >= 30:
+                while current <= final:
+                    chunk_end = min(current + timedelta(days=29), final)
+                    yield from self.fetch_all(
+                        endpoint,
+                        current.isoformat(),
+                        chunk_end.isoformat(),
+                        query_mode=query_mode,
+                        response_mode=response_mode,
+                    )
+                    current = chunk_end + timedelta(days=1)
+                return
+
         url = f"{BASE_URL}/{endpoint}"
-        params = {"start_date": start_date, "end_date": end_date}
+        params = self._range_params(start_date, end_date, query_mode)
         while True:
             try:
                 resp = self._get(url, params)
@@ -92,6 +135,13 @@ class OuraClient:
                     return
                 raise
             body = resp.json()
+            if response_mode == "single":
+                if not isinstance(body, dict):
+                    raise ValueError(f"Unexpected singleton response for {endpoint}")
+                yield body
+                break
+            if response_mode != "collection":
+                raise ValueError(f"Unknown response mode: {response_mode}")
             yield from body.get("data", [])
             next_token = body.get("next_token")
             if not next_token:

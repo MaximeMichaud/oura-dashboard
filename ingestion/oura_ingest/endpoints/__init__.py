@@ -1,11 +1,19 @@
 from .activity import DAILY_ACTIVITY_ENDPOINT
 from .cardiovascular import DAILY_CARDIOVASCULAR_AGE_ENDPOINT
+from .enhanced_tag import ENHANCED_TAG_ENDPOINT
+from .heartrate import HEARTRATE_ENDPOINT
+from .personal_info import PERSONAL_INFO_ENDPOINT
 from .readiness import DAILY_READINESS_ENDPOINT
 from .resilience import DAILY_RESILIENCE_ENDPOINT
+from .rest_mode_period import REST_MODE_PERIOD_ENDPOINT
+from .ring_battery_level import RING_BATTERY_LEVEL_ENDPOINT
+from .ring_configuration import RING_CONFIGURATION_ENDPOINT
+from .session import SESSION_ENDPOINT
 from .sleep import DAILY_SLEEP_ENDPOINT, SLEEP_ENDPOINT
 from .sleep_time import SLEEP_TIME_ENDPOINT
 from .spo2 import DAILY_SPO2_ENDPOINT
 from .stress import DAILY_STRESS_ENDPOINT
+from .tag import TAG_ENDPOINT
 from .vo2_max import DAILY_VO2_MAX_ENDPOINT
 from .workout import WORKOUT_ENDPOINT
 
@@ -21,4 +29,12 @@ ALL_ENDPOINTS = [
     DAILY_VO2_MAX_ENDPOINT,
     WORKOUT_ENDPOINT,
     SLEEP_TIME_ENDPOINT,
+    HEARTRATE_ENDPOINT,
+    RING_BATTERY_LEVEL_ENDPOINT,
+    RING_CONFIGURATION_ENDPOINT,
+    SESSION_ENDPOINT,
+    TAG_ENDPOINT,
+    ENHANCED_TAG_ENDPOINT,
+    REST_MODE_PERIOD_ENDPOINT,
+    PERSONAL_INFO_ENDPOINT,
 ]

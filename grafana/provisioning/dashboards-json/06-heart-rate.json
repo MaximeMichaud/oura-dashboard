@@ -1,0 +1,61 @@
+{
+  "annotations": {"list": []},
+  "editable": true,
+  "graphTooltip": 1,
+  "id": null,
+  "links": [{"title": "Overview", "type": "link", "url": "/d/oura-overview", "icon": "dashboard"}, {"title": "Context", "type": "link", "url": "/d/oura-context", "icon": "dashboard"}, {"title": "Ring", "type": "link", "url": "/d/oura-ring", "icon": "dashboard"}],
+  "panels": [
+    {
+      "id": 1, "title": "Latest Heart Rate", "type": "stat", "gridPos": {"x": 0, "y": 0, "w": 6, "h": 4},
+      "datasource": {"type": "grafana-postgresql-datasource", "uid": "oura-pg"},
+      "targets": [{"refId": "A", "format": "table", "rawSql": "SELECT bpm FROM heartrate WHERE $__timeFilter(timestamp) ORDER BY timestamp DESC LIMIT 1"}],
+      "fieldConfig": {"defaults": {"unit": "bpm", "color": {"mode": "fixed", "fixedColor": "red"}}, "overrides": []},
+      "options": {"colorMode": "value", "graphMode": "none", "reduceOptions": {"calcs": ["lastNotNull"]}}
+    },
+    {
+      "id": 2, "title": "Average Heart Rate", "type": "stat", "gridPos": {"x": 6, "y": 0, "w": 6, "h": 4},
+      "datasource": {"type": "grafana-postgresql-datasource", "uid": "oura-pg"},
+      "targets": [{"refId": "A", "format": "table", "rawSql": "SELECT AVG(bpm)::numeric(5,1) AS bpm FROM heartrate WHERE $__timeFilter(timestamp)"}],
+      "fieldConfig": {"defaults": {"unit": "bpm", "color": {"mode": "fixed", "fixedColor": "blue"}}, "overrides": []},
+      "options": {"colorMode": "value", "graphMode": "none", "reduceOptions": {"calcs": ["lastNotNull"]}}
+    },
+    {
+      "id": 3, "title": "Minimum", "type": "stat", "gridPos": {"x": 12, "y": 0, "w": 6, "h": 4},
+      "datasource": {"type": "grafana-postgresql-datasource", "uid": "oura-pg"},
+      "targets": [{"refId": "A", "format": "table", "rawSql": "SELECT MIN(bpm) AS bpm FROM heartrate WHERE $__timeFilter(timestamp)"}],
+      "fieldConfig": {"defaults": {"unit": "bpm", "color": {"mode": "fixed", "fixedColor": "green"}}, "overrides": []},
+      "options": {"colorMode": "value", "graphMode": "none", "reduceOptions": {"calcs": ["lastNotNull"]}}
+    },
+    {
+      "id": 4, "title": "Maximum", "type": "stat", "gridPos": {"x": 18, "y": 0, "w": 6, "h": 4},
+      "datasource": {"type": "grafana-postgresql-datasource", "uid": "oura-pg"},
+      "targets": [{"refId": "A", "format": "table", "rawSql": "SELECT MAX(bpm) AS bpm FROM heartrate WHERE $__timeFilter(timestamp)"}],
+      "fieldConfig": {"defaults": {"unit": "bpm", "color": {"mode": "fixed", "fixedColor": "orange"}}, "overrides": []},
+      "options": {"colorMode": "value", "graphMode": "none", "reduceOptions": {"calcs": ["lastNotNull"]}}
+    },
+    {
+      "id": 5, "title": "Heart Rate by Source", "type": "timeseries", "gridPos": {"x": 0, "y": 4, "w": 18, "h": 9},
+      "datasource": {"type": "grafana-postgresql-datasource", "uid": "oura-pg"},
+      "targets": [{"refId": "A", "format": "time_series", "rawSql": "SELECT $__timeGroupAlias(timestamp, '15m'), source AS metric, AVG(bpm) AS value FROM heartrate WHERE $__timeFilter(timestamp) GROUP BY 1, 2 ORDER BY 1"}],
+      "fieldConfig": {"defaults": {"unit": "bpm", "custom": {"drawStyle": "line", "lineWidth": 1, "showPoints": "never", "spanNulls": true}}, "overrides": []},
+      "options": {"legend": {"displayMode": "list", "placement": "bottom"}, "tooltip": {"mode": "multi"}}
+    },
+    {
+      "id": 6, "title": "Samples by Source", "type": "piechart", "gridPos": {"x": 18, "y": 4, "w": 6, "h": 9},
+      "datasource": {"type": "grafana-postgresql-datasource", "uid": "oura-pg"},
+      "targets": [{"refId": "A", "format": "table", "rawSql": "SELECT source, COUNT(*) AS samples FROM heartrate WHERE $__timeFilter(timestamp) GROUP BY source ORDER BY samples DESC"}],
+      "fieldConfig": {"defaults": {"unit": "short"}, "overrides": []},
+      "options": {"displayLabels": ["name", "percent"], "legend": {"displayMode": "list", "placement": "bottom"}, "pieType": "donut", "reduceOptions": {"calcs": ["lastNotNull"], "values": true}}
+    },
+    {
+      "id": 7, "title": "Daily Heart Rate Range", "type": "timeseries", "gridPos": {"x": 0, "y": 13, "w": 24, "h": 8},
+      "datasource": {"type": "grafana-postgresql-datasource", "uid": "oura-pg"},
+      "targets": [{"refId": "A", "format": "time_series", "rawSql": "SELECT timestamp::date AS time, MIN(bpm) AS minimum, AVG(bpm)::numeric(5,1) AS average, MAX(bpm) AS maximum FROM heartrate WHERE $__timeFilter(timestamp) GROUP BY 1 ORDER BY 1"}],
+      "fieldConfig": {"defaults": {"unit": "bpm", "custom": {"drawStyle": "line", "lineWidth": 2, "showPoints": "auto"}}, "overrides": []},
+      "options": {"legend": {"displayMode": "table", "placement": "bottom"}, "tooltip": {"mode": "multi"}}
+    }
+  ],
+  "refresh": "5m", "schemaVersion": 39, "tags": ["oura"], "templating": {"list": []},
+  "time": {"from": "now-30d", "to": "now"}, "timepicker": {}, "timezone": "browser",
+  "title": "Oura - Heart Rate", "uid": "oura-heart-rate", "version": 1
+}

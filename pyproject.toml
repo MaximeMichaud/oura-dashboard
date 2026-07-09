@@ -1,6 +1,6 @@
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-pythonpath = ["ingestion"]
+pythonpath = ["ingestion", "streamlit"]
 
 [tool.ruff]
 line-length = 120

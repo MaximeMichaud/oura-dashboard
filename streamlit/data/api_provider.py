@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta, timezone
+from datetime import time as datetime_time
 from typing import Any
 
 import pandas as pd
@@ -20,15 +21,47 @@ class ApiProvider:
         self._token = token
         self._headers = {"Authorization": f"Bearer {token}"}
 
-    def _fetch(self, endpoint: str, start: date | None = None, end: date | None = None) -> list[dict]:
+    def _fetch(
+        self,
+        endpoint: str,
+        start: date | None = None,
+        end: date | None = None,
+        *,
+        query_mode: str = "date",
+        response_mode: str = "collection",
+    ) -> list[dict]:
         """Fetch all pages from an Oura API endpoint."""
         import time
 
+        if query_mode == "datetime" and start and end and (end - start).days >= 30:
+            all_chunks = []
+            current = start
+            while current <= end:
+                chunk_end = min(current + timedelta(days=29), end)
+                all_chunks.extend(
+                    self._fetch(endpoint, current, chunk_end, query_mode=query_mode, response_mode=response_mode)
+                )
+                current = chunk_end + timedelta(days=1)
+            return all_chunks
+
         params: dict[str, Any] = {}
-        if start:
-            params["start_date"] = start.isoformat()
-        if end:
-            params["end_date"] = end.isoformat()
+        if query_mode == "date":
+            if start:
+                params["start_date"] = start.isoformat()
+            if end:
+                params["end_date"] = end.isoformat()
+        elif query_mode == "datetime":
+            if start:
+                params["start_datetime"] = datetime.combine(start, datetime_time.min, timezone.utc).isoformat()
+            if end:
+                end_dt = (
+                    datetime.now(timezone.utc)
+                    if end == date.today()
+                    else datetime.combine(end, datetime_time.max, timezone.utc)
+                )
+                params["end_datetime"] = end_dt.isoformat()
+        elif query_mode != "none":
+            raise ValueError(f"Unknown query mode: {query_mode}")
 
         all_data = []
         url = f"{self.BASE_URL}/{endpoint}"
@@ -46,18 +79,26 @@ class ApiProvider:
             resp.raise_for_status()
             retries = 0
             body = resp.json()
+            if response_mode == "single":
+                return [body]
             all_data.extend(body.get("data", []))
             next_token = body.get("next_token")
             if next_token:
-                params["next_token"] = next_token
+                params = {"next_token": next_token}
             else:
                 url = None
         return all_data
 
-    def _fetch_cached(self, endpoint, start, end):
-        key = f"api_{endpoint}_{start}_{end}"
+    def _fetch_cached(self, endpoint, start=None, end=None, *, query_mode="date", response_mode="collection"):
+        key = f"api_{endpoint}_{start}_{end}_{query_mode}_{response_mode}"
         if key not in st.session_state:
-            st.session_state[key] = self._fetch(endpoint, start, end)
+            st.session_state[key] = self._fetch(
+                endpoint,
+                start,
+                end,
+                query_mode=query_mode,
+                response_mode=response_mode,
+            )
         return st.session_state[key]
 
     # ------------------------------------------------------------------
@@ -554,7 +595,7 @@ class ApiProvider:
                     "source",
                 ]
             )
-        df = pd.DataFrame(data)
+        df = pd.DataFrame(data).reindex(columns=["day", "type", "mood", "start_datetime", "end_datetime"])
         return df.sort_values("day", ascending=False) if not df.empty else df
 
     # ------------------------------------------------------------------
@@ -634,3 +675,133 @@ class ApiProvider:
             "spo2": spo2_pct.get("average") if isinstance(spo2_pct, dict) else None,
             "bdi": last.get("breathing_disturbance_index"),
         }
+
+    # ------------------------------------------------------------------
+    # Extended API pages
+    # ------------------------------------------------------------------
+    def _heart_rate_frame(self, start: date, end: date) -> pd.DataFrame:
+        data = self._fetch_cached("heartrate", start, end, query_mode="datetime")
+        if not data:
+            return pd.DataFrame(columns=["timestamp", "bpm", "source"])
+        df = pd.DataFrame(data)[["timestamp", "bpm", "source"]]
+        df["timestamp"] = pd.to_datetime(df["timestamp"], utc=True)
+        return df.sort_values("timestamp")
+
+    def heart_rate_summary(self, start: date, end: date) -> dict:
+        df = self._heart_rate_frame(start, end)
+        if df.empty:
+            return {}
+        return {
+            "latest": int(df.iloc[-1]["bpm"]),
+            "average": round(df["bpm"].mean(), 1),
+            "minimum": int(df["bpm"].min()),
+            "maximum": int(df["bpm"].max()),
+        }
+
+    def heart_rate_series(self, start: date, end: date) -> pd.DataFrame:
+        df = self._heart_rate_frame(start, end)
+        if len(df) <= 5000:
+            return df
+        bucket_minutes = max(1, ((end - start).days * 24 * 60 + 4999) // 5000)
+        return (
+            df.groupby([pd.Grouper(key="timestamp", freq=f"{bucket_minutes}min"), "source"], as_index=False)["bpm"]
+            .mean()
+            .dropna()
+        )
+
+    def heart_rate_daily(self, start: date, end: date) -> pd.DataFrame:
+        df = self._heart_rate_frame(start, end)
+        if df.empty:
+            return pd.DataFrame(columns=["day", "minimum", "average", "maximum"])
+        df["day"] = df["timestamp"].dt.date
+        return df.groupby("day", as_index=False)["bpm"].agg(minimum="min", average="mean", maximum="max")
+
+    def heart_rate_sources(self, start: date, end: date) -> pd.DataFrame:
+        df = self._heart_rate_frame(start, end)
+        return df.groupby("source", as_index=False).size().rename(columns={"size": "count"})
+
+    def sessions(self, start: date, end: date) -> pd.DataFrame:
+        data = self._fetch_cached("session", start, end)
+        if not data:
+            return pd.DataFrame(columns=["day", "type", "mood", "start_datetime", "duration_minutes"])
+        df = pd.DataFrame(data)
+        df["start_datetime"] = pd.to_datetime(df["start_datetime"])
+        df["end_datetime"] = pd.to_datetime(df["end_datetime"])
+        df["duration_minutes"] = (df["end_datetime"] - df["start_datetime"]).dt.total_seconds() / 60
+        return df[["day", "type", "mood", "start_datetime", "duration_minutes"]].sort_values(
+            "start_datetime", ascending=False
+        )
+
+    def tags(self, start: date, end: date) -> pd.DataFrame:
+        rows = []
+        for item in self._fetch_cached("tag", start, end):
+            rows.append(
+                {
+                    "time": item.get("timestamp"),
+                    "kind": "Tag",
+                    "label": ", ".join(item.get("tags") or []) or item.get("text"),
+                    "comment": item.get("text"),
+                }
+            )
+        for item in self._fetch_cached("enhanced_tag", start, end):
+            rows.append(
+                {
+                    "time": item.get("start_time"),
+                    "kind": "Enhanced",
+                    "label": item.get("custom_name") or item.get("tag_type_code"),
+                    "comment": item.get("comment"),
+                }
+            )
+        df = pd.DataFrame(rows, columns=["time", "kind", "label", "comment"])
+        if not df.empty:
+            df["time"] = pd.to_datetime(df["time"])
+            df = df.sort_values("time", ascending=False)
+        return df
+
+    def rest_modes(self, start: date, end: date) -> pd.DataFrame:
+        data = self._fetch_cached("rest_mode_period", start, end)
+        if not data:
+            return pd.DataFrame(columns=["start_day", "end_day", "start_time", "end_time", "episodes"])
+        return (
+            pd.DataFrame(data)
+            .reindex(columns=["start_day", "end_day", "start_time", "end_time", "episodes"])
+            .sort_values("start_day", ascending=False)
+        )
+
+    def battery_series(self, start: date, end: date) -> pd.DataFrame:
+        data = self._fetch_cached("ring_battery_level", start, end, query_mode="datetime")
+        if not data:
+            return pd.DataFrame(columns=["timestamp", "level", "charging", "in_charger"])
+        df = pd.DataFrame(data).reindex(columns=["timestamp", "level", "charging", "in_charger"])
+        df["timestamp"] = pd.to_datetime(df["timestamp"], utc=True)
+        return df.sort_values("timestamp")
+
+    def ring_configurations(self) -> pd.DataFrame:
+        data = self._fetch_cached("ring_configuration", query_mode="none")
+        return pd.DataFrame(data).reindex(
+            columns=["color", "design", "firmware_version", "hardware_type", "set_up_at", "size"]
+        )
+
+    def personal_profile(self) -> dict:
+        data = self._fetch_cached("personal_info", query_mode="none", response_mode="single")
+        if not data:
+            return {}
+        return {k: data[0].get(k) for k in ("age", "weight", "height", "biological_sex")}
+
+    def ring_summary(self, start: date, end: date) -> dict:
+        battery = self.battery_series(start, end)
+        configs = self.ring_configurations()
+        current = configs.sort_values("set_up_at", na_position="first").iloc[-1] if not configs.empty else {}
+        result = {
+            "hardware_type": current.get("hardware_type"),
+            "firmware_version": current.get("firmware_version"),
+        }
+        if not battery.empty:
+            result.update(
+                {
+                    "latest_level": int(battery.iloc[-1]["level"]),
+                    "minimum_level": int(battery["level"].min()),
+                    "charging": bool(battery.iloc[-1]["charging"]),
+                }
+            )
+        return result

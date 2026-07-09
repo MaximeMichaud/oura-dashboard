@@ -49,7 +49,10 @@ def get_provider():
         # back to demo mode and remember the failure so we don't re-hit it on
         # every rerun.
         try:
-            token = get_env_oauth_access_token()
+            # In database mode, ingestion owns refresh-token rotation and
+            # persists replacements. Streamlit may reuse a valid access token,
+            # but must not independently consume the single-use refresh token.
+            token = get_env_oauth_access_token(allow_refresh=not bool(pg_host))
         except Exception:
             st.session_state["oauth_env_refresh_failed"] = True
             token = None

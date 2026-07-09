@@ -1,10 +1,11 @@
 from __future__ import annotations
 
+import logging
 import os
 import time
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, Protocol
 from urllib.parse import parse_qs, urlencode, urlparse
 
 import requests
@@ -14,9 +15,17 @@ from .config import Config, cfg
 AUTHORIZE_URL = "https://moi.ouraring.com/oauth/v2/ext/oauth-authorize"
 TOKEN_URL = "https://moi.ouraring.com/oauth/v2/ext/oauth-token"
 
+log = logging.getLogger(__name__)
+
 
 class OAuthError(Exception):
     """Raised when an OAuth token exchange or refresh fails."""
+
+
+class OAuthTokenStore(Protocol):
+    def load(self) -> dict[str, Any] | None: ...
+
+    def save(self, payload: dict[str, Any]) -> None: ...
 
 
 @dataclass
@@ -42,10 +51,18 @@ class StaticTokenProvider:
 class EnvTokenProvider:
     """Returns either a legacy bearer token or an OAuth access token."""
 
-    def __init__(self, config: Config | None = None, session: requests.Session | None = None):
+    def __init__(
+        self,
+        config: Config | None = None,
+        session: requests.Session | None = None,
+        token_store: OAuthTokenStore | None = None,
+    ):
         self.config = config or cfg
         self.session = session or requests.Session()
+        self.token_store = token_store
         self._legacy_token_rejected = False
+        if self.token_store is not None:
+            self._restore_persisted_token()
 
     @property
     def can_refresh(self) -> bool:
@@ -77,11 +94,60 @@ class EnvTokenProvider:
             refresh_token=self.config.OURA_REFRESH_TOKEN,
             session=self.session,
         )
+        if self.token_store is not None:
+            if not token.refresh_token:
+                raise OAuthError("OAuth refresh response did not include a replacement refresh token")
+            try:
+                self.token_store.save(
+                    {
+                        "access_token": token.access_token,
+                        "refresh_token": token.refresh_token,
+                        "expires_at": token.expires_at,
+                        "scope": token.scope,
+                    }
+                )
+            except Exception as exc:
+                raise OAuthError("Could not persist the rotated OAuth token") from exc
         self._store_in_process(token)
         return token.access_token
 
     def _cached_access_token_is_valid(self) -> bool:
         return self.config.has_valid_access_token
+
+    def _restore_persisted_token(self) -> None:
+        try:
+            state = self.token_store.load()
+        except Exception as exc:
+            log.warning("Could not decrypt persisted OAuth state; using configured OAuth bootstrap", exc_info=exc)
+            return
+        if not state:
+            return
+
+        try:
+            configured_expires_at = int(self.config.OURA_ACCESS_TOKEN_EXPIRES_AT)
+        except (TypeError, ValueError):
+            configured_expires_at = 0
+        try:
+            persisted_expires_at = int(state.get("expires_at") or 0)
+        except (TypeError, ValueError):
+            persisted_expires_at = 0
+        if self.config.OURA_ACCESS_TOKEN and configured_expires_at > persisted_expires_at:
+            return
+
+        access_token = state.get("access_token")
+        refresh_token = state.get("refresh_token")
+        if not access_token or not refresh_token:
+            log.warning("Persisted OAuth token state is incomplete; using configured OAuth bootstrap")
+            return
+
+        self.config.OURA_ACCESS_TOKEN = str(access_token)
+        self.config.OURA_REFRESH_TOKEN = str(refresh_token)
+        os.environ["OURA_ACCESS_TOKEN"] = str(access_token)
+        os.environ["OURA_REFRESH_TOKEN"] = str(refresh_token)
+        expires_at = state.get("expires_at")
+        if expires_at:
+            self.config.OURA_ACCESS_TOKEN_EXPIRES_AT = str(expires_at)
+            os.environ["OURA_ACCESS_TOKEN_EXPIRES_AT"] = str(expires_at)
 
     def _store_in_process(self, token: OAuthToken) -> None:
         self.config.OURA_ACCESS_TOKEN = token.access_token

@@ -12,7 +12,7 @@ import requests
 AUTHORIZE_URL = "https://moi.ouraring.com/oauth/v2/ext/oauth-authorize"
 TOKEN_URL = "https://moi.ouraring.com/oauth/v2/ext/oauth-token"
 DEFAULT_REDIRECT_URI = "http://localhost:8765/callback"
-DEFAULT_SCOPES = "email personal daily heartrate tag workout session spo2 ring_configuration stress heart_health"
+DEFAULT_SCOPES = "personal daily heartrate tag workout session spo2 ring_configuration stress heart_health"
 TOKEN_REFRESH_MARGIN_SECONDS = 300
 
 
@@ -75,7 +75,7 @@ def refresh_access_token(*, client_id: str, client_secret: str, refresh_token: s
     )
 
 
-def get_env_oauth_access_token() -> str | None:
+def get_env_oauth_access_token(*, allow_refresh: bool = True) -> str | None:
     client_id = os.environ.get("OURA_CLIENT_ID", "")
     client_secret = os.environ.get("OURA_CLIENT_SECRET", "")
     refresh_token = os.environ.get("OURA_REFRESH_TOKEN", "")
@@ -89,6 +89,9 @@ def get_env_oauth_access_token() -> str | None:
 
     if access_token and expires_at > int(time.time()) + TOKEN_REFRESH_MARGIN_SECONDS:
         return access_token
+
+    if not allow_refresh:
+        return None
 
     if not all((client_id, client_secret, refresh_token)):
         return None

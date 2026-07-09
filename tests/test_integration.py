@@ -131,6 +131,52 @@ class TestSyncLogSchema:
             )
             assert result.scalar() == 1
 
+    def test_extended_api_tables_exist(self, pg_engine):
+        expected = {
+            "heartrate",
+            "ring_battery_level",
+            "ring_configuration",
+            "session",
+            "tag",
+            "enhanced_tag",
+            "rest_mode_period",
+            "personal_info",
+            "oauth_token_state",
+        }
+        with pg_engine.connect() as conn:
+            rows = conn.execute(text("SELECT table_name FROM information_schema.tables WHERE table_schema = 'public'"))
+            assert expected.issubset({row[0] for row in rows})
+
+    def test_personal_info_does_not_store_email(self, pg_engine):
+        with pg_engine.connect() as conn:
+            rows = conn.execute(
+                text("SELECT column_name FROM information_schema.columns WHERE table_name = 'personal_info'")
+            )
+            assert "email" not in {row[0] for row in rows}
+
+    def test_oauth_token_store_encrypts_and_restores_state(self, pg_engine):
+        from oura_ingest.token_store import PostgresOAuthTokenStore
+
+        store = PostgresOAuthTokenStore(pg_engine, "test-encryption-key", provider="test-suite")
+        payload = {
+            "access_token": "test-access-token",
+            "refresh_token": "test-refresh-token",
+            "expires_at": 2_000_000_000,
+            "scope": "daily",
+        }
+        try:
+            store.save(payload)
+            assert store.load() == payload
+            with pg_engine.connect() as conn:
+                ciphertext = conn.execute(
+                    text("SELECT encode(encrypted_payload, 'hex') FROM oauth_token_state WHERE provider = 'test-suite'")
+                ).scalar_one()
+            assert payload["access_token"].encode().hex() not in ciphertext
+            assert payload["refresh_token"].encode().hex() not in ciphertext
+        finally:
+            with pg_engine.begin() as conn:
+                conn.execute(text("DELETE FROM oauth_token_state WHERE provider = 'test-suite'"))
+
 
 class TestUpsertBatchRealDb:
     """Validates the production UPSERT path (_upsert_batch) against a real PostgreSQL instead

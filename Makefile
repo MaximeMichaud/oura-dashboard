@@ -1,4 +1,4 @@
-.PHONY: up up-full down logs status psql oauth-setup lint format format-check test test-quick audit ci pre-commit clean
+.PHONY: up up-full down logs status psql migrate oauth-setup lint format format-check test test-quick audit ci pre-commit clean
 
 up:
 	docker compose up -d --build
@@ -20,6 +20,9 @@ status:
 
 psql:
 	docker compose exec postgres psql -U oura
+
+migrate:
+	docker compose run --rm migrate
 
 # One-shot local OAuth setup. The callback is published on 127.0.0.1:8765 only.
 # To use a different port, set OURA_REDIRECT_URI (e.g. http://localhost:9000/callback)

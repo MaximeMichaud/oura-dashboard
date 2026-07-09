@@ -39,8 +39,15 @@ def _validate_ident(name: str) -> str:
     return name
 
 
-def _get_start_date(engine: Engine, endpoint_name: str) -> str:
+def _get_start_date(
+    engine: Engine,
+    endpoint_name: str,
+    initial_history_days: int | None = None,
+    always_full_sync: bool = False,
+) -> str:
     """Get the start date for an endpoint: last sync date minus overlap, or HISTORY_START_DATE."""
+    if always_full_sync:
+        return cfg.HISTORY_START_DATE
     with engine.connect() as conn:
         row = conn.execute(
             text("SELECT last_sync_date FROM sync_log WHERE endpoint = :ep"),
@@ -49,7 +56,10 @@ def _get_start_date(engine: Engine, endpoint_name: str) -> str:
     if row and row[0]:
         d = row[0] - timedelta(days=cfg.OVERLAP_DAYS)
         return d.isoformat()
-    return cfg.HISTORY_START_DATE
+    history_start = date.fromisoformat(cfg.HISTORY_START_DATE)
+    if initial_history_days is not None:
+        history_start = max(history_start, date.today() - timedelta(days=initial_history_days))
+    return history_start.isoformat()
 
 
 def _upsert_batch(engine: Engine, table: str, pk: str, rows: list[dict]) -> int:
@@ -156,18 +166,30 @@ def _transform_stream(ep, records):
 def sync_endpoint(engine: Engine, client: OuraClient, ep) -> int:
     """Sync a single endpoint: fetch from API, transform, upsert in chunks."""
     t0 = time.monotonic()
-    start = _get_start_date(engine, ep.name)
+    initial_history_days = ep.initial_history_days
+    if initial_history_days == -1:
+        initial_history_days = cfg.TIMESERIES_HISTORY_DAYS
+    start = _get_start_date(engine, ep.name, initial_history_days, ep.always_full_sync)
     end = date.today().isoformat()
     log.info("[%s] Fetching %s -> %s", ep.name, start, end)
 
     # Staleness gap warning
     gap_days = (date.today() - date.fromisoformat(start)).days
-    if gap_days > 3:
+    if gap_days > 3 and not ep.always_full_sync:
         log.warning("[%s] Sync gap: %d days behind", ep.name, gap_days)
 
     # Stream and upsert in chunks instead of buffering all in RAM
     count = 0
-    stream = _transform_stream(ep, client.fetch_all(ep.api_path, start, end))
+    stream = _transform_stream(
+        ep,
+        client.fetch_all(
+            ep.api_path,
+            start,
+            end,
+            query_mode=ep.query_mode,
+            response_mode=ep.response_mode,
+        ),
+    )
     for batch in _chunked(stream, BATCH_SIZE):
         count += _upsert_batch(engine, ep.table, ep.pk, batch)
 
