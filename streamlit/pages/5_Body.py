@@ -23,7 +23,7 @@ from data.providers import get_provider
 
 import streamlit as st
 
-st.set_page_config(page_title="Oura - Body", layout="wide", page_icon=":ring:")
+st.set_page_config(page_title="Oura - Body", layout="wide", page_icon=":material/monitor_heart:")
 
 from components.sidebar import render_sidebar  # noqa: E402
 

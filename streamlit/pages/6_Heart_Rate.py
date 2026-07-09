@@ -9,7 +9,7 @@ from data.providers import get_provider
 
 import streamlit as st
 
-st.set_page_config(page_title="Oura - Heart Rate", layout="wide", page_icon=":heart:")
+st.set_page_config(page_title="Oura - Heart Rate", layout="wide", page_icon=":material/favorite:")
 
 from components.sidebar import render_sidebar  # noqa: E402
 

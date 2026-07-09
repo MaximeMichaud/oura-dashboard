@@ -19,7 +19,7 @@ def _to_local(ts: pd.Timestamp) -> pd.Timestamp:
     return ts
 
 
-st.set_page_config(page_title="Oura - Sleep", layout="wide", page_icon=":ring:")
+st.set_page_config(page_title="Oura - Sleep", layout="wide", page_icon=":material/bedtime:")
 
 from components.sidebar import render_sidebar  # noqa: E402
 
@@ -207,13 +207,13 @@ with c3:
 st.subheader("Sleep Contributors")
 contrib_table = provider.sleep_contributors_table(start, end)
 if not contrib_table.empty:
+    contributor_columns = [column for column in contrib_table.columns if column != "Date"]
     st.dataframe(
-        contrib_table.style.background_gradient(
-            cmap="RdYlGn",
-            subset=[c for c in contrib_table.columns if c != "Date"],
-            vmin=0,
-            vmax=100,
-        ),
+        contrib_table,
+        column_config={
+            column: st.column_config.ProgressColumn(column, min_value=0, max_value=100, format="%d")
+            for column in contributor_columns
+        },
         width="stretch",
         hide_index=True,
     )

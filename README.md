@@ -217,6 +217,7 @@ read endpoint in the current [OpenAPI 1.35 specification](https://cloud.ouraring
 | PostgreSQL connection refused | Wait for the healthcheck - Postgres can take a few seconds to start |
 | Postgres container stays unhealthy after a major version bump | A new PostgreSQL major cannot reuse an older version's data volume. Dump and restore manually, or reset with `docker compose down -v && make up` to re-import |
 | Ingestion stuck | Check `docker compose logs ingestion` for error details |
+| Nested `_stcore` 404s on Streamlit subpages | This is a [confirmed Streamlit multipage bug](https://github.com/streamlit/streamlit/issues/7074). Streamlit also calls the valid root endpoints; verify `/_stcore/health` returns HTTP 200. |
 
 ## Reset
 
