@@ -1,6 +1,6 @@
 import json
 
-from ..endpoint import simple_endpoint
+from ..endpoint import Endpoint
 
 
 def _transform(rec: dict) -> dict:
@@ -15,4 +15,11 @@ def _transform(rec: dict) -> dict:
     }
 
 
-REST_MODE_PERIOD_ENDPOINT = simple_endpoint("rest_mode_period", pk="id", transform=_transform)
+REST_MODE_PERIOD_ENDPOINT = Endpoint(
+    name="rest_mode_period",
+    api_path="rest_mode_period",
+    table="rest_mode_period",
+    pk="id",
+    transform=_transform,
+    always_full_sync=True,
+)

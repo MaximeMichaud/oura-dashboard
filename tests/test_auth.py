@@ -36,6 +36,24 @@ class _JsonSession:
         return Response()
 
 
+class _TokenStore:
+    def __init__(self, state=None, save_error=None, load_error=None):
+        self.state = state
+        self.save_error = save_error
+        self.load_error = load_error
+        self.saved = None
+
+    def load(self):
+        if self.load_error:
+            raise self.load_error
+        return self.state
+
+    def save(self, payload):
+        if self.save_error:
+            raise self.save_error
+        self.saved = payload
+
+
 def test_build_authorization_url():
     url = build_authorization_url("client-id", "http://localhost:8765/callback", "daily workout")
     assert "client_id=client-id" in url
@@ -113,6 +131,122 @@ def test_env_token_provider_refreshes_expired_oauth_token(monkeypatch):
 
     assert provider.get_token() == "new-token"
     assert provider.config.OURA_REFRESH_TOKEN == "new-refresh-token"
+
+
+def test_env_token_provider_restores_persisted_oauth_state(monkeypatch):
+    monkeypatch.delenv("OURA_TOKEN", raising=False)
+    monkeypatch.setenv("OURA_CLIENT_ID", "client-id")
+    monkeypatch.setenv("OURA_CLIENT_SECRET", "client-secret")
+    monkeypatch.setenv("OURA_REFRESH_TOKEN", "stale-refresh")
+    store = _TokenStore(
+        {
+            "access_token": "persisted-access",
+            "refresh_token": "persisted-refresh",
+            "expires_at": int(time.time()) + 3600,
+            "scope": "daily",
+        }
+    )
+
+    provider = EnvTokenProvider(config=Config(), token_store=store)
+
+    assert provider.get_token() == "persisted-access"
+    assert provider.config.OURA_REFRESH_TOKEN == "persisted-refresh"
+
+
+def test_env_token_provider_keeps_newer_oauth_bootstrap(monkeypatch):
+    monkeypatch.delenv("OURA_TOKEN", raising=False)
+    monkeypatch.setenv("OURA_CLIENT_ID", "client-id")
+    monkeypatch.setenv("OURA_CLIENT_SECRET", "client-secret")
+    monkeypatch.setenv("OURA_REFRESH_TOKEN", "new-bootstrap-refresh")
+    monkeypatch.setenv("OURA_ACCESS_TOKEN", "new-bootstrap-access")
+    monkeypatch.setenv("OURA_ACCESS_TOKEN_EXPIRES_AT", str(int(time.time()) + 7200))
+    store = _TokenStore(
+        {
+            "access_token": "old-persisted-access",
+            "refresh_token": "old-persisted-refresh",
+            "expires_at": int(time.time()) + 3600,
+        }
+    )
+
+    provider = EnvTokenProvider(config=Config(), token_store=store)
+
+    assert provider.get_token() == "new-bootstrap-access"
+    assert provider.config.OURA_REFRESH_TOKEN == "new-bootstrap-refresh"
+
+
+def test_env_token_provider_falls_back_when_state_cannot_be_decrypted(monkeypatch):
+    monkeypatch.delenv("OURA_TOKEN", raising=False)
+    monkeypatch.setenv("OURA_CLIENT_ID", "client-id")
+    monkeypatch.setenv("OURA_CLIENT_SECRET", "new-client-secret")
+    monkeypatch.setenv("OURA_REFRESH_TOKEN", "new-bootstrap-refresh")
+    monkeypatch.setenv("OURA_ACCESS_TOKEN", "new-bootstrap-access")
+    monkeypatch.setenv("OURA_ACCESS_TOKEN_EXPIRES_AT", str(int(time.time()) + 3600))
+    store = _TokenStore(load_error=ValueError("wrong encryption key"))
+
+    provider = EnvTokenProvider(config=Config(), token_store=store)
+
+    assert provider.get_token() == "new-bootstrap-access"
+
+
+def test_env_token_provider_falls_back_when_persisted_state_is_incomplete(monkeypatch):
+    monkeypatch.delenv("OURA_TOKEN", raising=False)
+    monkeypatch.setenv("OURA_CLIENT_ID", "client-id")
+    monkeypatch.setenv("OURA_CLIENT_SECRET", "new-client-secret")
+    monkeypatch.setenv("OURA_REFRESH_TOKEN", "new-bootstrap-refresh")
+    monkeypatch.setenv("OURA_ACCESS_TOKEN", "new-bootstrap-access")
+    monkeypatch.setenv("OURA_ACCESS_TOKEN_EXPIRES_AT", str(int(time.time()) + 3600))
+    store = _TokenStore({"expires_at": int(time.time()) + 7200})
+
+    provider = EnvTokenProvider(config=Config(), token_store=store)
+
+    assert provider.get_token() == "new-bootstrap-access"
+
+
+def test_env_token_provider_persists_rotated_refresh_token(monkeypatch):
+    monkeypatch.delenv("OURA_TOKEN", raising=False)
+    monkeypatch.setenv("OURA_CLIENT_ID", "client-id")
+    monkeypatch.setenv("OURA_CLIENT_SECRET", "client-secret")
+    monkeypatch.setenv("OURA_REFRESH_TOKEN", "single-use-refresh")
+    monkeypatch.setenv("OURA_ACCESS_TOKEN_EXPIRES_AT", "1")
+    store = _TokenStore()
+    session = _JsonSession({"access_token": "new-access", "refresh_token": "replacement-refresh", "expires_in": 3600})
+
+    provider = EnvTokenProvider(config=Config(), session=session, token_store=store)
+
+    assert provider.get_token() == "new-access"
+    assert store.saved["refresh_token"] == "replacement-refresh"
+    assert store.saved["access_token"] == "new-access"
+
+
+def test_env_token_provider_stops_if_rotated_token_cannot_be_persisted(monkeypatch):
+    monkeypatch.delenv("OURA_TOKEN", raising=False)
+    monkeypatch.setenv("OURA_CLIENT_ID", "client-id")
+    monkeypatch.setenv("OURA_CLIENT_SECRET", "client-secret")
+    monkeypatch.setenv("OURA_REFRESH_TOKEN", "single-use-refresh")
+    monkeypatch.setenv("OURA_ACCESS_TOKEN_EXPIRES_AT", "1")
+    store = _TokenStore(save_error=RuntimeError("database unavailable"))
+    session = _JsonSession({"access_token": "new-access", "refresh_token": "replacement-refresh", "expires_in": 3600})
+
+    provider = EnvTokenProvider(config=Config(), session=session, token_store=store)
+
+    with pytest.raises(OAuthError, match="persist"):
+        provider.get_token()
+
+
+def test_env_token_provider_requires_rotated_refresh_token_when_persisting(monkeypatch):
+    monkeypatch.delenv("OURA_TOKEN", raising=False)
+    monkeypatch.setenv("OURA_CLIENT_ID", "client-id")
+    monkeypatch.setenv("OURA_CLIENT_SECRET", "client-secret")
+    monkeypatch.setenv("OURA_REFRESH_TOKEN", "single-use-refresh")
+    monkeypatch.setenv("OURA_ACCESS_TOKEN_EXPIRES_AT", "1")
+    store = _TokenStore()
+    session = _JsonSession({"access_token": "new-access", "expires_in": 3600})
+
+    provider = EnvTokenProvider(config=Config(), session=session, token_store=store)
+
+    with pytest.raises(OAuthError, match="replacement refresh token"):
+        provider.get_token()
+    assert store.saved is None
 
 
 def test_env_token_provider_demotes_dead_legacy_token(monkeypatch):

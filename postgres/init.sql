@@ -1,6 +1,8 @@
 -- Oura Dashboard - PostgreSQL Schema
 -- All tables are idempotent (IF NOT EXISTS)
 
+CREATE EXTENSION IF NOT EXISTS pgcrypto;
+
 CREATE TABLE IF NOT EXISTS sleep (
     id              TEXT PRIMARY KEY,
     day             DATE NOT NULL,
@@ -245,6 +247,12 @@ CREATE TABLE IF NOT EXISTS personal_info (
     height          REAL,
     biological_sex  TEXT,
     updated_at      TIMESTAMPTZ DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS oauth_token_state (
+    provider            TEXT PRIMARY KEY,
+    encrypted_payload   BYTEA NOT NULL,
+    updated_at          TIMESTAMPTZ DEFAULT now()
 );
 
 DO $$ BEGIN

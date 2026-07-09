@@ -132,6 +132,16 @@ class TestGetStartDate:
             os.environ.clear()
             os.environ.update(env_backup)
 
+    def test_always_full_sync_ignores_sync_log(self):
+        engine = MagicMock()
+
+        from oura_ingest.ingest import _get_start_date
+
+        result = _get_start_date(engine, "rest_mode_period", always_full_sync=True)
+
+        assert result == "2020-01-01"
+        engine.connect.assert_not_called()
+
 
 # --- Task 25: sync_endpoint transform error handling ---
 
@@ -194,6 +204,32 @@ class TestSyncEndpointTransformErrors:
 
         # Warning logged for bad record
         assert any("Transform error" in r.message for r in caplog.records)
+
+
+def test_full_sync_does_not_report_an_incremental_gap(caplog):
+    from oura_ingest.endpoint import Endpoint
+    from oura_ingest.ingest import sync_endpoint
+
+    ep = Endpoint(
+        name="full_sync",
+        api_path="full_sync",
+        table="full_sync",
+        pk="id",
+        transform=lambda record: record,
+        always_full_sync=True,
+    )
+    engine = MagicMock()
+    client = MagicMock()
+    client.fetch_all.return_value = iter(())
+
+    with (
+        patch("oura_ingest.ingest._upsert_batch"),
+        patch("oura_ingest.ingest._update_sync_log"),
+        patch("oura_ingest.ingest._record_sync_history"),
+    ):
+        sync_endpoint(engine, client, ep)
+
+    assert "Sync gap" not in caplog.text
 
 
 # --- Task 27: sync_log and sync_history tests ---

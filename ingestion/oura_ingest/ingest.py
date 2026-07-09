@@ -39,8 +39,15 @@ def _validate_ident(name: str) -> str:
     return name
 
 
-def _get_start_date(engine: Engine, endpoint_name: str, initial_history_days: int | None = None) -> str:
+def _get_start_date(
+    engine: Engine,
+    endpoint_name: str,
+    initial_history_days: int | None = None,
+    always_full_sync: bool = False,
+) -> str:
     """Get the start date for an endpoint: last sync date minus overlap, or HISTORY_START_DATE."""
+    if always_full_sync:
+        return cfg.HISTORY_START_DATE
     with engine.connect() as conn:
         row = conn.execute(
             text("SELECT last_sync_date FROM sync_log WHERE endpoint = :ep"),
@@ -162,13 +169,13 @@ def sync_endpoint(engine: Engine, client: OuraClient, ep) -> int:
     initial_history_days = ep.initial_history_days
     if initial_history_days == -1:
         initial_history_days = cfg.TIMESERIES_HISTORY_DAYS
-    start = _get_start_date(engine, ep.name, initial_history_days)
+    start = _get_start_date(engine, ep.name, initial_history_days, ep.always_full_sync)
     end = date.today().isoformat()
     log.info("[%s] Fetching %s -> %s", ep.name, start, end)
 
     # Staleness gap warning
     gap_days = (date.today() - date.fromisoformat(start)).days
-    if gap_days > 3:
+    if gap_days > 3 and not ep.always_full_sync:
         log.warning("[%s] Sync gap: %d days behind", ep.name, gap_days)
 
     # Stream and upsert in chunks instead of buffering all in RAM

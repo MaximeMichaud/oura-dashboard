@@ -12,6 +12,7 @@ class Endpoint:
     query_mode: Literal["date", "datetime", "none"] = "date"
     response_mode: Literal["collection", "single"] = "collection"
     initial_history_days: int | None = None
+    always_full_sync: bool = False
 
 
 def simple_endpoint(name: str, pk: str, transform: Callable[[dict], dict]) -> Endpoint:

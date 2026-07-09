@@ -9,7 +9,7 @@ Built with **[Oura API v2](https://cloud.ouraring.com/v2/docs)**, **PostgreSQL 1
 ## Stack
 
 - **Oura API v2** - personal health data
-- **PostgreSQL 18** - persistent storage (21 tables + 1 materialized view, auto-migrated)
+- **PostgreSQL 18** - persistent storage (22 tables + 1 materialized view, auto-migrated)
 - **Grafana 13** - 8 pre-provisioned dashboards (no setup required)
 - **Python 3.14** - ingestion service with incremental sync, retry logic, and CLI flags
 
@@ -68,6 +68,12 @@ make oauth-setup
 ```
 
 The helper prints an Oura authorization URL, waits on `http://localhost:8765/callback` (bound to localhost only), exchanges the callback code, tests the API, and writes OAuth values to `.env` without removing `OURA_TOKEN`.
+
+Oura refresh tokens are single-use. After the first automatic refresh, ingestion stores the replacement token encrypted
+in PostgreSQL using `pgcrypto` and the OAuth client secret. Values in `.env` remain the bootstrap and recovery source;
+rotated tokens are never written back to the repository or stored as plaintext in the database. In PostgreSQL mode,
+ingestion is the only process allowed to rotate this token, preventing Streamlit from consuming the same token during a
+temporary database outage.
 
 If you are not using Docker for setup, install the ingestion dependencies first, then run the helper:
 
@@ -194,6 +200,7 @@ python -m oura_ingest.cli --once --endpoint daily_sleep
 
 Heart rate and battery imports are split into requests of at most 30 days, as required by the Oura API. The initial
 depth defaults to 90 days and remains configurable. `personal_info` deliberately excludes the email field.
+`rest_mode_period` is fully refetched on every sync so an open period can receive its eventual end date.
 
 Oura features such as Lab Uploads, Locate, metabolic lab results, meals, and GPS routes are not exposed by a public
 read endpoint in the current [OpenAPI 1.35 specification](https://cloud.ouraring.com/v2/static/json/openapi-1.35.json).
