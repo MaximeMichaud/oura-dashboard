@@ -1,5 +1,5 @@
-# Auto-approve and auto-merge dependency update PRs from trusted bots.
-# Major version bumps are approved but left for manual merge review.
+# Auto-merge dependency update PRs from trusted bots.
+# Major version bumps are left for manual review and merge.
 # Uses GitHub's native auto-merge (no polling needed).
 
 name: Auto-merge dependency updates
@@ -52,16 +52,6 @@ jobs:
           echo "update_type=$UPDATE_TYPE" >> "$GITHUB_OUTPUT"
           echo "Detected update type: $UPDATE_TYPE"
 
-      - name: Approve PR
-        env:
-          GH_TOKEN: ${{ github.token }}
-          PR_AUTHOR: ${{ github.event.pull_request.user.login }}
-        run: |
-          gh pr review "${{ github.event.pull_request.number }}" \
-            --repo "${{ github.repository }}" \
-            --approve \
-            --body "Auto-approved: dependency update from $PR_AUTHOR." || true
-
       - name: Enable auto-merge for minor/patch updates
         if: steps.update-type.outputs.update_type != 'version-update:semver-major'
         env:
@@ -75,4 +65,4 @@ jobs:
       - name: Skip auto-merge for major updates
         if: steps.update-type.outputs.update_type == 'version-update:semver-major'
         run: |
-          echo "Major version bump detected. PR approved but NOT auto-merged."
+          echo "Major version bump detected. PR left for manual review and merge."
