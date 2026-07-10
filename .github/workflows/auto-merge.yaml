@@ -35,12 +35,15 @@ jobs:
 
       - name: Determine update type
         id: update-type
+        env:
+          DEPENDABOT_UPDATE_TYPE: ${{ steps.dependabot-metadata.outputs.update-type }}
+          PR_AUTHOR: ${{ github.event.pull_request.user.login }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
         run: |
-          if [[ "${{ github.event.pull_request.user.login }}" == "dependabot[bot]" ]]; then
-            UPDATE_TYPE="${{ steps.dependabot-metadata.outputs.update-type }}"
+          if [[ "$PR_AUTHOR" == "dependabot[bot]" ]]; then
+            UPDATE_TYPE="$DEPENDABOT_UPDATE_TYPE"
           else
-            TITLE="${{ github.event.pull_request.title }}"
-            if echo "$TITLE" | grep -iqE '\bmajor\b'; then
+            if echo "$PR_TITLE" | grep -iqE '\bmajor\b'; then
               UPDATE_TYPE="version-update:semver-major"
             else
               UPDATE_TYPE="version-update:semver-minor"
@@ -52,11 +55,12 @@ jobs:
       - name: Approve PR
         env:
           GH_TOKEN: ${{ github.token }}
+          PR_AUTHOR: ${{ github.event.pull_request.user.login }}
         run: |
           gh pr review "${{ github.event.pull_request.number }}" \
             --repo "${{ github.repository }}" \
             --approve \
-            --body "Auto-approved: dependency update from ${{ github.event.pull_request.user.login }}." || true
+            --body "Auto-approved: dependency update from $PR_AUTHOR." || true
 
       - name: Enable auto-merge for minor/patch updates
         if: steps.update-type.outputs.update_type != 'version-update:semver-major'

@@ -3,6 +3,7 @@ from pathlib import Path
 import pytest
 
 STREAMLIT_DIR = Path(__file__).parent.parent / "streamlit"
+VALIDATOR_PATH = Path(__file__).parent.parent / "scripts/validate-streamlit.mjs"
 
 PAGE_ICONS = {
     "app.py": ":material/health_metrics:",
@@ -30,3 +31,14 @@ def test_sleep_contributors_do_not_require_matplotlib():
 
     assert "background_gradient" not in source
     assert "st.column_config.ProgressColumn" in source
+
+
+def test_streamlit_validator_covers_root_console_errors_and_scroll_container():
+    source = VALIDATOR_PATH.read_text()
+
+    assert 'route: "", slug: "root"' in source
+    assert 'page.on("console"' in source
+    assert 'message.type() === "error"' in source
+    assert "page.locator('[data-testid=\"stMain\"]')" in source
+    assert "element.scrollTo" in source
+    assert "-scroll-" in source

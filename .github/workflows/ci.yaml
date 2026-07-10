@@ -30,6 +30,11 @@ jobs:
         with:
           args: check streamlit/
 
+      - name: Ruff check - tests
+        uses: astral-sh/ruff-action@v4.0.0
+        with:
+          args: check tests/
+
       - name: Ruff format check - ingestion
         uses: astral-sh/ruff-action@v4.0.0
         with:
@@ -39,6 +44,11 @@ jobs:
         uses: astral-sh/ruff-action@v4.0.0
         with:
           args: format --check streamlit/
+
+      - name: Ruff format check - tests
+        uses: astral-sh/ruff-action@v4.0.0
+        with:
+          args: format --check tests/
 
       - name: Hadolint - ingestion/Dockerfile
         uses: hadolint/hadolint-action@v3.3.0
@@ -125,6 +135,22 @@ jobs:
   test:
     name: Test
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_DB: oura
+          POSTGRES_USER: oura
+          POSTGRES_PASSWORD: oura
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U oura -d oura"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+    env:
+      TEST_DATABASE_URL: postgresql://oura:oura@localhost:5432/oura
     steps:
       - uses: actions/checkout@v7
 
@@ -134,12 +160,26 @@ jobs:
           python-version: "3.14.6"
           allow-prereleases: true
           cache: pip
-          cache-dependency-path: ingestion/requirements.txt
+          cache-dependency-path: |
+            ingestion/requirements.txt
+            streamlit/requirements.txt
 
       - name: Install dependencies
         run: |
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client
           pip install -r ingestion/requirements.txt
+          pip install -r streamlit/requirements.txt
           pip install pytest pytest-cov
+
+      - name: Apply PostgreSQL schema
+        env:
+          PGPASSWORD: oura
+          GRAFANA_DB_PASSWORD: oura_grafana
+        run: |
+          psql -v ON_ERROR_STOP=1 -h localhost -U oura -d oura \
+            -f postgres/init.sql \
+            -f postgres/configure-grafana-role.sql
 
       - name: Run tests with coverage
         run: |
@@ -178,7 +218,7 @@ jobs:
     name: Integration
     needs: [build]
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7
 
@@ -189,6 +229,12 @@ jobs:
 
       - name: Start the full stack with docker compose
         run: docker compose up -d --wait --wait-timeout 120
+
+      - name: Seed synthetic dashboard data
+        run: |
+          docker compose exec -T postgres \
+            sh -c 'psql -v ON_ERROR_STOP=1 -U "$POSTGRES_USER" -d "$POSTGRES_DB"' \
+            < postgres/ci-seed.sql
 
       - name: Verify schema auto-applied on first boot (22 tables)
         run: |
@@ -210,19 +256,39 @@ jobs:
         run: |
           docker compose exec -T postgres \
             psql -U oura -d oura -v ON_ERROR_STOP=1 \
-            -f /docker-entrypoint-initdb.d/init.sql
+            -f /docker-entrypoint-initdb.d/10-init.sql \
+            -f /docker-entrypoint-initdb.d/20-configure-grafana-role.sql
 
       - name: Verify Grafana health
         run: |
           curl -sf http://localhost:3000/api/health \
             | python3 -c "import sys, json; d = json.load(sys.stdin); assert d.get('database') == 'ok', d; print('Grafana', d['version'])"
 
+      - name: Verify Grafana alert rules evaluate without errors
+        run: |
+          for _ in $(seq 1 30); do
+            RULE_STATE=$(curl -sf http://localhost:3000/api/prometheus/grafana/api/v1/rules \
+              | python3 -c "
+          import json, sys
+          groups = json.load(sys.stdin).get('data', {}).get('groups', [])
+          rules = [rule for group in groups for rule in group.get('rules', [])]
+          state = 'error' if any(rule.get('health') == 'error' for rule in rules) else 'wait'
+          if rules and all(rule.get('health') in ('ok', 'nodata') for rule in rules):
+              state = 'ok'
+          print(state)
+          ")
+            [ "$RULE_STATE" = "error" ] && { echo "Grafana alert rule evaluation failed"; exit 1; }
+            [ "$RULE_STATE" = "ok" ] && { echo "Grafana alert rules healthy"; break; }
+            sleep 2
+          done
+          [ "$RULE_STATE" = "ok" ] || { echo "Grafana alert rules did not evaluate in time"; exit 1; }
+
       - name: Verify dashboards provisioned
         run: |
           DASH_COUNT=$(curl -sf -u admin:admin 'http://localhost:3000/api/search?type=dash-db' \
             | python3 -c "import sys, json; print(len(json.load(sys.stdin)))")
           echo "Dashboards loaded: $DASH_COUNT"
-          [ "$DASH_COUNT" -ge 5 ] || { echo "Expected at least 5 dashboards, got $DASH_COUNT"; exit 1; }
+          [ "$DASH_COUNT" -ge 8 ] || { echo "Expected at least 8 dashboards, got $DASH_COUNT"; exit 1; }
 
       - name: Verify datasource health (Grafana to PostgreSQL)
         run: |
@@ -241,10 +307,39 @@ jobs:
       - name: Verify Streamlit health
         run: curl -sf http://localhost:8501/_stcore/health && echo "Streamlit ready"
 
+      - name: Validate every Streamlit page in demo mode
+        run: |
+          STREAMLIT_IMAGE=$(docker compose images -q streamlit)
+          docker run -d --name oura-streamlit-demo -p 127.0.0.1:8502:8501 "$STREAMLIT_IMAGE"
+          for _ in $(seq 1 30); do
+            curl -sf http://localhost:8502/_stcore/health && break
+            sleep 2
+          done
+          curl -sf http://localhost:8502/_stcore/health
+          npm ci --prefix scripts
+          ./scripts/node_modules/.bin/playwright install --with-deps chromium
+          STREAMLIT_URL=http://localhost:8502 node scripts/validate-streamlit.mjs
+
+      - name: Validate every Grafana dashboard and panel
+        run: node scripts/validate-dashboards.mjs
+
+      - name: Upload browser artifacts on failure
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: browser-validation
+          path: |
+            /tmp/streamlit
+            /tmp/panels
+          if-no-files-found: ignore
+          retention-days: 7
+
       - name: Dump compose logs on failure
         if: failure()
         run: docker compose logs --no-color
 
       - name: Tear down
         if: always()
-        run: docker compose down -v
+        run: |
+          docker rm -f oura-streamlit-demo 2>/dev/null || true
+          docker compose down -v

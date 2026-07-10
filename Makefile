@@ -16,10 +16,10 @@ status:
 	@docker compose ps
 	@echo ""
 	@echo "--- Sync Log ---"
-	@docker compose exec -T postgres psql -U oura -c "SELECT endpoint, last_sync_date, record_count, updated_at FROM sync_log ORDER BY endpoint;"
+	@docker compose exec -T postgres sh -c 'psql -U "$$POSTGRES_USER" -d "$$POSTGRES_DB" -c "SELECT endpoint, last_sync_date, record_count, last_success_at, consecutive_failures FROM sync_log ORDER BY endpoint;"'
 
 psql:
-	docker compose exec postgres psql -U oura
+	docker compose exec postgres sh -c 'psql -U "$$POSTGRES_USER" -d "$$POSTGRES_DB"'
 
 migrate:
 	docker compose run --rm migrate
@@ -36,13 +36,13 @@ oauth-setup:
 # ---------------------------------------------------------------------------
 
 lint:
-	ruff check ingestion/ streamlit/
+	ruff check ingestion/ streamlit/ tests/
 
 format:
-	ruff format ingestion/ streamlit/
+	ruff format ingestion/ streamlit/ tests/
 
 format-check:
-	ruff format --check ingestion/ streamlit/
+	ruff format --check ingestion/ streamlit/ tests/
 
 test:
 	pytest --cov=ingestion --cov-fail-under=70
@@ -53,6 +53,7 @@ test-quick:
 audit:
 	pip-audit -r ingestion/requirements.txt
 	pip-audit -r streamlit/requirements.txt
+	npm audit --prefix scripts --audit-level=high
 
 ci: lint format-check test
 
