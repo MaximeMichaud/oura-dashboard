@@ -278,6 +278,48 @@ def test_sync_endpoint_uses_local_date_for_window_and_cursor():
     mock_sync_log.assert_called_once_with(engine, "local_window", 0, date(2025, 1, 8))
 
 
+def test_sync_endpoint_uses_configured_timeseries_history_window():
+    from oura_ingest.endpoint import Endpoint
+    from oura_ingest.ingest import sync_endpoint
+
+    ep = Endpoint(
+        name="heartrate",
+        api_path="heartrate",
+        table="heartrate",
+        pk="timestamp",
+        transform=lambda record: record,
+        initial_history_days=-1,
+        query_mode="datetime",
+    )
+    engine = MagicMock()
+    conn = MagicMock()
+    engine.connect.return_value.__enter__ = Mock(return_value=conn)
+    engine.connect.return_value.__exit__ = Mock(return_value=False)
+    conn.execute.return_value.fetchone.return_value = None
+    client = MagicMock()
+    client.fetch_all.return_value = iter(())
+
+    with (
+        patch("oura_ingest.ingest.cfg") as mock_cfg,
+        patch("oura_ingest.ingest._update_sync_log"),
+        patch("oura_ingest.ingest._record_sync_history"),
+    ):
+        mock_cfg.local_date.return_value = date(2025, 4, 1)
+        mock_cfg.HISTORY_START_DATE = "2020-01-01"
+        mock_cfg.OVERLAP_DAYS = 8
+        mock_cfg.TIMESERIES_HISTORY_DAYS = 90
+
+        sync_endpoint(engine, client, ep)
+
+    client.fetch_all.assert_called_once_with(
+        "heartrate",
+        "2025-01-01",
+        "2025-04-01",
+        query_mode="datetime",
+        response_mode="collection",
+    )
+
+
 # --- Task 27: sync_log and sync_history tests ---
 
 

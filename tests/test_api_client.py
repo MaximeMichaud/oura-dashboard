@@ -1,8 +1,8 @@
 """Tests for oura_ingest.api_client (tasks 20, 22)."""
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from types import SimpleNamespace
-from unittest.mock import Mock
+from unittest.mock import Mock, patch
 
 import pytest
 import requests
@@ -60,6 +60,21 @@ class TestRateLimitError:
         err = RateLimitError(120)
         assert err.retry_after == 120
         assert "120" in str(err)
+
+
+class TestClientConfiguration:
+    def test_uses_environment_token_provider_by_default(self):
+        provider = Mock()
+
+        with patch("oura_ingest.api_client.EnvTokenProvider", return_value=provider) as provider_class:
+            client = OuraClient(user_timezone="UTC")
+
+        provider_class.assert_called_once_with()
+        assert client.token_provider is provider
+
+    def test_invalid_user_timezone_is_rejected(self):
+        with pytest.raises(ValueError, match="Invalid user timezone"):
+            OuraClient(token="test-token", user_timezone="Invalid/Timezone")
 
 
 # --- Task 22: fetch_all tests ---
@@ -133,6 +148,23 @@ class TestFetchAll:
 
         assert params["start_datetime"] == "2024-01-01T05:00:00+00:00"
         assert params["end_datetime"] == "2024-01-03T04:59:59.999999+00:00"
+
+    def test_datetime_query_ends_at_now_for_local_current_day(self):
+        client = OuraClient(token="test-token", user_timezone="America/Toronto")
+        now = datetime(2025, 1, 2, 2, 30, tzinfo=timezone.utc)
+
+        with patch("oura_ingest.api_client.datetime", wraps=datetime) as mock_datetime:
+            mock_datetime.now.return_value = now
+            params = client._range_params("2025-01-01", "2025-01-01", "datetime")
+
+        assert params["start_datetime"] == "2025-01-01T05:00:00+00:00"
+        assert params["end_datetime"] == now.isoformat()
+
+    def test_unknown_query_mode_is_rejected(self):
+        client = self._make_client()
+
+        with pytest.raises(ValueError, match="Unknown query mode: weekly"):
+            client._range_params("2024-01-01", "2024-01-02", "weekly")
 
     def test_no_range_collection(self):
         client = self._make_client()
@@ -398,6 +430,24 @@ class TestGetRetryPolicy:
 
 class TestFetchAllErrors:
     """_get is replaced on the instance so the tenacity retry/sleep machinery never runs."""
+
+    def test_singleton_response_must_be_an_object(self):
+        client = OuraClient(token="t")
+        response = Mock()
+        response.json.return_value = [{"id": "user"}]
+        client._get = Mock(return_value=response)
+
+        with pytest.raises(ValueError, match="Unexpected singleton response for personal_info"):
+            list(client.fetch_all("personal_info", query_mode="none", response_mode="single"))
+
+    def test_unknown_response_mode_is_rejected(self):
+        client = OuraClient(token="t")
+        response = Mock()
+        response.json.return_value = {"data": []}
+        client._get = Mock(return_value=response)
+
+        with pytest.raises(ValueError, match="Unknown response mode: stream"):
+            list(client.fetch_all("daily_sleep", response_mode="stream"))
 
     def test_non_404_http_error_is_reraised(self):
         client = OuraClient(token="t")

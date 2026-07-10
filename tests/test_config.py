@@ -227,3 +227,16 @@ class TestValidate:
         finally:
             os.environ.clear()
             os.environ.update(env_backup)
+
+    def test_malformed_access_token_expiry_is_not_valid(self, monkeypatch):
+        monkeypatch.delenv("OURA_TOKEN", raising=False)
+        for key in OAUTH_KEYS:
+            monkeypatch.delenv(key, raising=False)
+        monkeypatch.setenv("OURA_ACCESS_TOKEN", "cached-access")
+        monkeypatch.setenv("OURA_ACCESS_TOKEN_EXPIRES_AT", "not-a-timestamp")
+
+        from oura_ingest.config import Config
+
+        cfg = Config()
+
+        assert cfg.has_valid_access_token is False

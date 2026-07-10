@@ -45,7 +45,7 @@ format-check:
 	ruff format --check ingestion/ streamlit/ tests/
 
 test:
-	pytest --cov=ingestion --cov-fail-under=70
+	pytest tests/ --cov=oura_ingest --cov-branch --cov-report=term-missing --cov-fail-under=93
 
 test-quick:
 	pytest
