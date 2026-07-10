@@ -42,6 +42,7 @@ class _TokenStore:
         self.save_error = save_error
         self.load_error = load_error
         self.saved = None
+        self.save_calls = 0
 
     def load(self):
         if self.load_error:
@@ -49,6 +50,7 @@ class _TokenStore:
         return self.state
 
     def save(self, payload):
+        self.save_calls += 1
         if self.save_error:
             raise self.save_error
         self.saved = payload
@@ -56,6 +58,7 @@ class _TokenStore:
 
 def test_build_authorization_url():
     url = build_authorization_url("client-id", "http://localhost:8765/callback", "daily workout")
+    assert url.startswith("https://cloud.ouraring.com/oauth/authorize?")
     assert "client_id=client-id" in url
     assert "response_type=code" in url
     assert "scope=daily+workout" in url
@@ -218,6 +221,33 @@ def test_env_token_provider_persists_rotated_refresh_token(monkeypatch):
     assert store.saved["access_token"] == "new-access"
 
 
+def test_env_token_provider_retries_rotated_token_persistence(monkeypatch):
+    monkeypatch.delenv("OURA_TOKEN", raising=False)
+    monkeypatch.setenv("OURA_CLIENT_ID", "client-id")
+    monkeypatch.setenv("OURA_CLIENT_SECRET", "client-secret")
+    monkeypatch.setenv("OURA_REFRESH_TOKEN", "single-use-refresh")
+    monkeypatch.setenv("OURA_ACCESS_TOKEN_EXPIRES_AT", "1")
+    delays = []
+    monkeypatch.setattr("oura_ingest.auth.time.sleep", delays.append)
+
+    class FlakyTokenStore(_TokenStore):
+        def save(self, payload):
+            self.save_calls += 1
+            if self.save_calls < 3:
+                raise RuntimeError("database unavailable")
+            self.saved = payload
+
+    store = FlakyTokenStore()
+    session = _JsonSession({"access_token": "new-access", "refresh_token": "replacement-refresh", "expires_in": 3600})
+    provider = EnvTokenProvider(config=Config(), session=session, token_store=store)
+
+    assert provider.get_token() == "new-access"
+    assert store.save_calls == 3
+    assert store.saved["refresh_token"] == "replacement-refresh"
+    assert session.posts == 1
+    assert delays == [0.25, 0.5]
+
+
 def test_env_token_provider_stops_if_rotated_token_cannot_be_persisted(monkeypatch):
     monkeypatch.delenv("OURA_TOKEN", raising=False)
     monkeypatch.setenv("OURA_CLIENT_ID", "client-id")
@@ -226,11 +256,13 @@ def test_env_token_provider_stops_if_rotated_token_cannot_be_persisted(monkeypat
     monkeypatch.setenv("OURA_ACCESS_TOKEN_EXPIRES_AT", "1")
     store = _TokenStore(save_error=RuntimeError("database unavailable"))
     session = _JsonSession({"access_token": "new-access", "refresh_token": "replacement-refresh", "expires_in": 3600})
+    monkeypatch.setattr("oura_ingest.auth.time.sleep", lambda _: None)
 
     provider = EnvTokenProvider(config=Config(), session=session, token_store=store)
 
     with pytest.raises(OAuthError, match="persist"):
         provider.get_token()
+    assert store.save_calls == 3
 
 
 def test_env_token_provider_requires_rotated_refresh_token_when_persisting(monkeypatch):

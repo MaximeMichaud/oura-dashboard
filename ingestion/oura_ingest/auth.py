@@ -12,8 +12,10 @@ import requests
 
 from .config import Config, cfg
 
-AUTHORIZE_URL = "https://moi.ouraring.com/oauth/v2/ext/oauth-authorize"
-TOKEN_URL = "https://moi.ouraring.com/oauth/v2/ext/oauth-token"
+AUTHORIZE_URL = "https://cloud.ouraring.com/oauth/authorize"
+TOKEN_URL = "https://api.ouraring.com/oauth/token"
+TOKEN_STORE_SAVE_ATTEMPTS = 3
+TOKEN_STORE_SAVE_RETRY_DELAY_SECONDS = 0.25
 
 log = logging.getLogger(__name__)
 
@@ -97,19 +99,30 @@ class EnvTokenProvider:
         if self.token_store is not None:
             if not token.refresh_token:
                 raise OAuthError("OAuth refresh response did not include a replacement refresh token")
-            try:
-                self.token_store.save(
-                    {
-                        "access_token": token.access_token,
-                        "refresh_token": token.refresh_token,
-                        "expires_at": token.expires_at,
-                        "scope": token.scope,
-                    }
-                )
-            except Exception as exc:
-                raise OAuthError("Could not persist the rotated OAuth token") from exc
+            self._persist_rotated_token(token)
         self._store_in_process(token)
         return token.access_token
+
+    def _persist_rotated_token(self, token: OAuthToken) -> None:
+        payload = {
+            "access_token": token.access_token,
+            "refresh_token": token.refresh_token,
+            "expires_at": token.expires_at,
+            "scope": token.scope,
+        }
+        for attempt in range(1, TOKEN_STORE_SAVE_ATTEMPTS + 1):
+            try:
+                self.token_store.save(payload)
+                return
+            except Exception as exc:
+                if attempt == TOKEN_STORE_SAVE_ATTEMPTS:
+                    raise OAuthError("Could not persist the rotated OAuth token") from exc
+                log.warning(
+                    "Could not persist the rotated OAuth token; retrying (%d/%d)",
+                    attempt,
+                    TOKEN_STORE_SAVE_ATTEMPTS,
+                )
+                time.sleep(TOKEN_STORE_SAVE_RETRY_DELAY_SECONDS * attempt)
 
     def _cached_access_token_is_valid(self) -> bool:
         return self.config.has_valid_access_token

@@ -2,9 +2,12 @@
 
 from __future__ import annotations
 
+import os
+import time
 from datetime import date, datetime, timedelta, timezone
 from datetime import time as datetime_time
 from typing import Any
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 import pandas as pd
 import requests
@@ -21,6 +24,67 @@ class ApiProvider:
         self._token = token
         self._headers = {"Authorization": f"Bearer {token}"}
 
+    @staticmethod
+    def _user_timezone() -> ZoneInfo:
+        timezone_name = st.session_state.get("user_timezone", os.environ.get("USER_TIMEZONE", "UTC"))
+        try:
+            return ZoneInfo(timezone_name)
+        except ZoneInfoNotFoundError:
+            return ZoneInfo("UTC")
+
+    def _datetime_range_params(self, start: date | None, end: date | None) -> dict[str, str]:
+        user_timezone = self._user_timezone()
+        now = datetime.now(timezone.utc)
+        local_today = now.astimezone(user_timezone).date()
+        params = {}
+        if start:
+            params["start_datetime"] = (
+                datetime.combine(
+                    start,
+                    datetime_time.min,
+                    user_timezone,
+                )
+                .astimezone(timezone.utc)
+                .isoformat()
+            )
+        if end:
+            end_datetime = (
+                now
+                if end == local_today
+                else datetime.combine(end, datetime_time.max, user_timezone).astimezone(timezone.utc)
+            )
+            params["end_datetime"] = end_datetime.isoformat()
+        return params
+
+    def _request(self, url: str, params: dict[str, Any]) -> requests.Response:
+        max_retries = 5
+        for attempt in range(max_retries + 1):
+            try:
+                response = requests.get(url, headers=self._headers, params=params, timeout=30)
+            except (requests.ConnectionError, requests.Timeout):
+                if attempt == max_retries:
+                    raise
+                time.sleep(min(2**attempt, 30))
+                continue
+
+            if response.status_code == 429 or response.status_code in {500, 502, 503, 504}:
+                if attempt == max_retries:
+                    response.raise_for_status()
+                if response.status_code == 429:
+                    try:
+                        delay = int(response.headers.get("Retry-After", 60))
+                    except (TypeError, ValueError):
+                        delay = 60
+                else:
+                    delay = min(2**attempt, 30)
+                time.sleep(min(delay, 120))
+                continue
+
+            response.raise_for_status()
+            return response
+
+        raise RuntimeError("Oura API request retry loop exited unexpectedly")
+
     def _fetch(
         self,
         endpoint: str,
@@ -31,8 +95,6 @@ class ApiProvider:
         response_mode: str = "collection",
     ) -> list[dict]:
         """Fetch all pages from an Oura API endpoint."""
-        import time
-
         if query_mode == "datetime" and start and end and (end - start).days >= 30:
             all_chunks = []
             current = start
@@ -51,39 +113,24 @@ class ApiProvider:
             if end:
                 params["end_date"] = end.isoformat()
         elif query_mode == "datetime":
-            if start:
-                params["start_datetime"] = datetime.combine(start, datetime_time.min, timezone.utc).isoformat()
-            if end:
-                end_dt = (
-                    datetime.now(timezone.utc)
-                    if end == date.today()
-                    else datetime.combine(end, datetime_time.max, timezone.utc)
-                )
-                params["end_datetime"] = end_dt.isoformat()
+            params = self._datetime_range_params(start, end)
         elif query_mode != "none":
             raise ValueError(f"Unknown query mode: {query_mode}")
 
         all_data = []
         url = f"{self.BASE_URL}/{endpoint}"
-        retries = 0
-        max_retries = 5
+        seen_next_tokens = set()
         while url:
-            resp = requests.get(url, headers=self._headers, params=params, timeout=30)
-            if resp.status_code == 429:
-                retries += 1
-                if retries > max_retries:
-                    resp.raise_for_status()
-                retry_after = int(resp.headers.get("Retry-After", 60))
-                time.sleep(min(retry_after, 120))
-                continue
-            resp.raise_for_status()
-            retries = 0
+            resp = self._request(url, params)
             body = resp.json()
             if response_mode == "single":
                 return [body]
             all_data.extend(body.get("data", []))
             next_token = body.get("next_token")
             if next_token:
+                if next_token in seen_next_tokens:
+                    raise RuntimeError(f"Oura API returned a cyclic next_token for {endpoint}")
+                seen_next_tokens.add(next_token)
                 params = {"next_token": next_token}
             else:
                 url = None
@@ -582,20 +629,19 @@ class ApiProvider:
 
     def workouts(self, start: date, end: date) -> pd.DataFrame:
         data = self._fetch_cached("workout", start, end)
+        columns = [
+            "day",
+            "activity",
+            "calories",
+            "distance",
+            "start_datetime",
+            "end_datetime",
+            "intensity",
+            "source",
+        ]
         if not data:
-            return pd.DataFrame(
-                columns=[
-                    "day",
-                    "activity",
-                    "calories",
-                    "distance",
-                    "start_datetime",
-                    "end_datetime",
-                    "intensity",
-                    "source",
-                ]
-            )
-        df = pd.DataFrame(data).reindex(columns=["day", "type", "mood", "start_datetime", "end_datetime"])
+            return pd.DataFrame(columns=columns)
+        df = pd.DataFrame(data).reindex(columns=columns)
         return df.sort_values("day", ascending=False) if not df.empty else df
 
     # ------------------------------------------------------------------

@@ -1,6 +1,7 @@
 import logging
 from datetime import date, datetime, time, timedelta, timezone
 from typing import Iterator
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 import requests
 from tenacity import (
@@ -11,6 +12,7 @@ from tenacity import (
 )
 
 from .auth import EnvTokenProvider, StaticTokenProvider
+from .config import cfg
 
 log = logging.getLogger(__name__)
 
@@ -46,7 +48,12 @@ def _wait_for_rate_limit(retry_state) -> float:
 
 
 class OuraClient:
-    def __init__(self, token: str | None = None, token_provider=None):
+    def __init__(
+        self,
+        token: str | None = None,
+        token_provider=None,
+        user_timezone: str | None = None,
+    ):
         self.session = requests.Session()
         if token_provider is not None:
             self.token_provider = token_provider
@@ -54,6 +61,15 @@ class OuraClient:
             self.token_provider = StaticTokenProvider(token)
         else:
             self.token_provider = EnvTokenProvider()
+        provider_config = getattr(self.token_provider, "config", None)
+        provider_timezone = getattr(provider_config, "USER_TIMEZONE", None)
+        timezone_name = user_timezone or (
+            provider_timezone if isinstance(provider_timezone, str) and provider_timezone else cfg.USER_TIMEZONE
+        )
+        try:
+            self.user_timezone = ZoneInfo(timezone_name)
+        except ZoneInfoNotFoundError as exc:
+            raise ValueError(f"Invalid user timezone: {timezone_name!r}") from exc
 
     def _set_authorization_header(self, force_refresh: bool = False) -> None:
         token = self.token_provider.get_token(force_refresh=force_refresh)
@@ -80,8 +96,7 @@ class OuraClient:
         resp.raise_for_status()
         return resp
 
-    @staticmethod
-    def _range_params(start_date: str | None, end_date: str | None, query_mode: str) -> dict:
+    def _range_params(self, start_date: str | None, end_date: str | None, query_mode: str) -> dict:
         if query_mode == "none":
             return {}
         if query_mode == "date":
@@ -89,12 +104,18 @@ class OuraClient:
         if query_mode != "datetime":
             raise ValueError(f"Unknown query mode: {query_mode}")
 
-        start = datetime.combine(date.fromisoformat(start_date), time.min, tzinfo=timezone.utc)
+        now = datetime.now(timezone.utc)
+        local_today = now.astimezone(self.user_timezone).date()
+        start = datetime.combine(
+            date.fromisoformat(start_date),
+            time.min,
+            tzinfo=self.user_timezone,
+        ).astimezone(timezone.utc)
         end_day = date.fromisoformat(end_date)
         end = (
-            datetime.now(timezone.utc)
-            if end_day == date.today()
-            else datetime.combine(end_day, time.max, tzinfo=timezone.utc)
+            now
+            if end_day == local_today
+            else datetime.combine(end_day, time.max, tzinfo=self.user_timezone).astimezone(timezone.utc)
         )
         return {"start_datetime": start.isoformat(), "end_datetime": end.isoformat()}
 
@@ -126,12 +147,13 @@ class OuraClient:
 
         url = f"{BASE_URL}/{endpoint}"
         params = self._range_params(start_date, end_date, query_mode)
+        seen_next_tokens: set[str] = set()
         while True:
             try:
                 resp = self._get(url, params)
             except requests.HTTPError as e:
-                if e.response is not None and e.response.status_code == 404:
-                    log.warning("[%s] Endpoint not found (404), skipping", endpoint)
+                if response_mode == "single" and e.response is not None and e.response.status_code == 404:
+                    log.warning("[%s] Singleton endpoint not found (404), skipping", endpoint)
                     return
                 raise
             body = resp.json()
@@ -146,4 +168,7 @@ class OuraClient:
             next_token = body.get("next_token")
             if not next_token:
                 break
+            if next_token in seen_next_tokens:
+                raise RuntimeError(f"Pagination cycle detected for {endpoint}")
+            seen_next_tokens.add(next_token)
             params = {"next_token": next_token}

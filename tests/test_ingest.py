@@ -147,10 +147,10 @@ class TestGetStartDate:
 
 
 class TestSyncEndpointTransformErrors:
-    def test_skips_bad_records(self, caplog):
-        """One bad record should not abort sync - good records are still processed."""
+    def test_processes_good_records_then_fails_without_advancing_cursor(self, caplog):
+        """Good records are committed, but any bad transform fails the endpoint."""
         from oura_ingest.endpoint import Endpoint
-        from oura_ingest.ingest import sync_endpoint
+        from oura_ingest.ingest import TransformError, sync_endpoint
 
         call_count = 0
 
@@ -186,11 +186,12 @@ class TestSyncEndpointTransformErrors:
 
         with (
             patch("oura_ingest.ingest._upsert_batch", return_value=2) as mock_upsert,
-            patch("oura_ingest.ingest._update_sync_log"),
-            patch("oura_ingest.ingest._record_sync_history"),
+            patch("oura_ingest.ingest._update_sync_log") as mock_sync_log,
+            patch("oura_ingest.ingest._record_sync_history") as mock_history,
             caplog.at_level("WARNING"),
         ):
-            sync_endpoint(mock_engine, mock_client, ep)
+            with pytest.raises(TransformError) as exc_info:
+                sync_endpoint(mock_engine, mock_client, ep)
 
         # _upsert_batch called with 2 good records (bad one skipped)
         assert mock_upsert.call_count == 1
@@ -198,12 +199,16 @@ class TestSyncEndpointTransformErrors:
         assert len(upsert_rows) == 2
         assert upsert_rows[0]["day"] == "2025-01-01"
         assert upsert_rows[1]["day"] == "2025-01-03"
+        assert exc_info.value.failed_count == 1
+        assert exc_info.value.record_count == 2
 
         # transform was called 3 times
         assert call_count == 3
 
         # Warning logged for bad record
         assert any("Transform error" in r.message for r in caplog.records)
+        mock_sync_log.assert_not_called()
+        mock_history.assert_not_called()
 
 
 def test_full_sync_does_not_report_an_incremental_gap(caplog):
@@ -232,6 +237,47 @@ def test_full_sync_does_not_report_an_incremental_gap(caplog):
     assert "Sync gap" not in caplog.text
 
 
+def test_sync_endpoint_uses_local_date_for_window_and_cursor():
+    from oura_ingest.endpoint import Endpoint
+    from oura_ingest.ingest import sync_endpoint
+
+    ep = Endpoint(
+        name="local_window",
+        api_path="local_window",
+        table="local_window",
+        pk="day",
+        transform=lambda record: record,
+        initial_history_days=7,
+    )
+    engine = MagicMock()
+    conn = MagicMock()
+    engine.connect.return_value.__enter__ = Mock(return_value=conn)
+    engine.connect.return_value.__exit__ = Mock(return_value=False)
+    conn.execute.return_value.fetchone.return_value = None
+    client = MagicMock()
+    client.fetch_all.return_value = iter(())
+
+    with (
+        patch("oura_ingest.ingest.cfg") as mock_cfg,
+        patch("oura_ingest.ingest._update_sync_log") as mock_sync_log,
+        patch("oura_ingest.ingest._record_sync_history"),
+    ):
+        mock_cfg.local_date.return_value = date(2025, 1, 8)
+        mock_cfg.HISTORY_START_DATE = "2020-01-01"
+        mock_cfg.OVERLAP_DAYS = 8
+
+        sync_endpoint(engine, client, ep)
+
+    client.fetch_all.assert_called_once_with(
+        "local_window",
+        "2025-01-01",
+        "2025-01-08",
+        query_mode="date",
+        response_mode="collection",
+    )
+    mock_sync_log.assert_called_once_with(engine, "local_window", 0, date(2025, 1, 8))
+
+
 # --- Task 27: sync_log and sync_history tests ---
 
 
@@ -245,12 +291,13 @@ class TestUpdateSyncLog:
         engine.begin.return_value.__enter__ = Mock(return_value=conn)
         engine.begin.return_value.__exit__ = Mock(return_value=False)
 
-        _update_sync_log(engine, "daily_sleep", 42)
+        _update_sync_log(engine, "daily_sleep", 42, date(2025, 1, 16))
 
         conn.execute.assert_called_once()
         params = conn.execute.call_args[0][1]
         assert params["ep"] == "daily_sleep"
         assert params["c"] == 42
+        assert params["d"] == "2025-01-16"
 
     def test_sync_log_clears_error_fields(self):
         """The SQL should set last_error=NULL and consecutive_failures=0."""
@@ -574,9 +621,29 @@ class TestSyncAll:
         mock_fail.assert_called_once()
         assert mock_fail.call_args[0][1] == "ep_a"
         assert mock_hist.call_args_list[0].args[4] == "error"
-        # Current policy (documented, not necessarily ideal): the healthcheck sentinel is
-        # still refreshed after a partial failure.
+        # The second endpoint succeeded, so the run is healthy enough to refresh the sentinel.
         sentinel.touch.assert_called_once()
+
+    def test_all_failed_endpoints_do_not_touch_sentinel(self):
+        from oura_ingest import ingest
+        from oura_ingest.ingest import TransformError
+
+        engine, client = MagicMock(), MagicMock()
+        error = TransformError("ep_a", 1)
+        error.record_count = 2
+        error.duration = 1.5
+        with (
+            patch.object(ingest, "ALL_ENDPOINTS", [self._endpoint("ep_a")]),
+            patch.object(ingest, "sync_endpoint", side_effect=error),
+            patch.object(ingest, "_record_sync_failure") as mock_fail,
+            patch.object(ingest, "_record_sync_history") as mock_history,
+            patch.object(ingest, "_SENTINEL_PATH") as sentinel,
+        ):
+            ingest.sync_all(engine, client)
+
+        mock_fail.assert_called_once()
+        assert mock_history.call_args.args[2:5] == (2, 1.5, "error")
+        sentinel.touch.assert_not_called()
 
     def test_view_refresh_failure_is_swallowed(self, caplog):
         from oura_ingest import ingest

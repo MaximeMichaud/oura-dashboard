@@ -106,11 +106,7 @@ def show_provider_sidebar():
                 st.divider()
                 st.caption("OAuth")
                 client_id = st.text_input("Client ID", value=os.environ.get("OURA_CLIENT_ID", ""))
-                client_secret = st.text_input(
-                    "Client Secret",
-                    value=os.environ.get("OURA_CLIENT_SECRET", ""),
-                    type="password",
-                )
+                submitted_client_secret = st.text_input("Client Secret", type="password")
                 redirect_uri = os.environ.get("OURA_REDIRECT_URI", DEFAULT_REDIRECT_URI)
                 scopes = os.environ.get("OURA_OAUTH_SCOPES", DEFAULT_SCOPES)
 
@@ -120,6 +116,7 @@ def show_provider_sidebar():
                 callback_value = st.text_input("Callback URL or code")
                 if st.button("Connect with OAuth"):
                     code = extract_authorization_code(callback_value)
+                    client_secret = submitted_client_secret or os.environ.get("OURA_CLIENT_SECRET", "")
                     if not all((client_id, client_secret, code)):
                         st.error("Client ID, client secret, and callback code are required.")
                     else:

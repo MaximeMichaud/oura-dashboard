@@ -9,8 +9,8 @@ from urllib.parse import parse_qs, urlencode, urlparse
 
 import requests
 
-AUTHORIZE_URL = "https://moi.ouraring.com/oauth/v2/ext/oauth-authorize"
-TOKEN_URL = "https://moi.ouraring.com/oauth/v2/ext/oauth-token"
+AUTHORIZE_URL = "https://cloud.ouraring.com/oauth/authorize"
+TOKEN_URL = "https://api.ouraring.com/oauth/token"
 DEFAULT_REDIRECT_URI = "http://localhost:8765/callback"
 DEFAULT_SCOPES = "personal daily heartrate tag workout session spo2 ring_configuration stress heart_health"
 TOKEN_REFRESH_MARGIN_SECONDS = 300

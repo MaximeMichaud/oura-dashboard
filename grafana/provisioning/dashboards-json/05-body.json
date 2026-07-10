@@ -661,6 +661,7 @@
         "defaults": {
           "unit": "none",
           "decimals": 1,
+          "noValue": "N/A",
           "color": {"mode": "fixed", "fixedColor": "orange"},
           "thresholds": {"mode": "absolute", "steps": [{"color": "orange", "value": null}]}
         },

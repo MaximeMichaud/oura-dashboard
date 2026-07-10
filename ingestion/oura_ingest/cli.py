@@ -8,7 +8,7 @@ import signal
 import sys
 import threading
 import time
-from datetime import date, timedelta
+from datetime import timedelta
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
@@ -72,8 +72,9 @@ def _shutdown(signum, frame):
 
 def _test_token(access_token: str) -> int:
     _load_ingestion_dependencies()
-    start = (date.today() - timedelta(days=7)).isoformat()
-    end = date.today().isoformat()
+    today = cfg.local_date()
+    start = (today - timedelta(days=7)).isoformat()
+    end = today.isoformat()
     return len(list(OuraClient(token=access_token).fetch_all("daily_sleep", start, end)))
 
 

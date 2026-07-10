@@ -1,6 +1,8 @@
 import os
 import sys
 import time
+from datetime import date, datetime
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 OAUTH_REQUIRED_KEYS = (
     "OURA_CLIENT_ID",
@@ -31,9 +33,18 @@ class Config:
         self.POSTGRES_USER: str = os.environ.get("POSTGRES_USER", "oura")
         self.POSTGRES_PASSWORD: str = os.environ.get("POSTGRES_PASSWORD", "oura")
         self.HISTORY_START_DATE: str = os.environ.get("HISTORY_START_DATE", "2020-01-01")
+        self.USER_TIMEZONE: str = os.environ.get("USER_TIMEZONE", "UTC")
+        try:
+            self._user_timezone = ZoneInfo(self.USER_TIMEZONE)
+        except ZoneInfoNotFoundError as exc:
+            raise ValueError(f"Invalid USER_TIMEZONE: {self.USER_TIMEZONE!r}") from exc
         self.SYNC_INTERVAL_MINUTES: int = int(os.environ.get("SYNC_INTERVAL_MINUTES", "30"))
-        self.OVERLAP_DAYS: int = int(os.environ.get("OVERLAP_DAYS", "2"))
+        # Ring 4 and Gen3 can backfill up to seven days; one extra day covers the date boundary.
+        self.OVERLAP_DAYS: int = int(os.environ.get("OVERLAP_DAYS", "8"))
         self.TIMESERIES_HISTORY_DAYS: int = int(os.environ.get("TIMESERIES_HISTORY_DAYS", "90"))
+
+    def local_date(self) -> date:
+        return datetime.now(self._user_timezone).date()
 
     @property
     def has_legacy_token(self) -> bool:

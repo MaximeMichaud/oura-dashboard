@@ -1,7 +1,13 @@
 import time
 from unittest.mock import patch
 
-from data.oauth import get_env_oauth_access_token
+from data.oauth import build_authorization_url, get_env_oauth_access_token
+
+
+def test_authorization_url_uses_public_oura_endpoint():
+    url = build_authorization_url("client-id", "http://localhost:8765/callback", "daily")
+
+    assert url.startswith("https://cloud.ouraring.com/oauth/authorize?")
 
 
 def test_valid_cached_access_token_does_not_require_refresh(monkeypatch):

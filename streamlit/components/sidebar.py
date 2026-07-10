@@ -1,8 +1,8 @@
 """Shared sidebar - time range picker + timezone + provider status."""
 
 import os
-from datetime import date, timedelta
-from zoneinfo import available_timezones
+from datetime import datetime, timedelta, timezone
+from zoneinfo import ZoneInfo, available_timezones
 
 from data.providers import get_provider, show_provider_sidebar
 
@@ -52,6 +52,12 @@ _ALL_ZONES = sorted(available_timezones())
 _TZ_OPTIONS = _COMMON_TIMEZONES + [z for z in _ALL_ZONES if z not in _COMMON_TIMEZONES]
 
 
+def _today_in_timezone(timezone_name: str, now: datetime | None = None):
+    """Return the current calendar date in the requested timezone."""
+    current = now or datetime.now(timezone.utc)
+    return current.astimezone(ZoneInfo(timezone_name)).date()
+
+
 def render_sidebar():
     """Render the shared sidebar on every page."""
     st.sidebar.title("Oura Dashboard")
@@ -71,10 +77,6 @@ def render_sidebar():
         st.session_state["time_range"] = preset_keys[1]  # "Last 30 days"
 
     preset = st.sidebar.selectbox("Time Range", preset_keys, key="time_range")
-    end_date = date.today()
-    start_date = end_date - timedelta(days=presets[preset])
-    st.session_state["start_date"] = start_date
-    st.session_state["end_date"] = end_date
 
     # Timezone picker - restore from query_params on F5, persist via key
     params = st.query_params
@@ -89,6 +91,10 @@ def render_sidebar():
         params["tz"] = st.session_state["user_timezone"]
     elif "tz" in params:
         del params["tz"]
+
+    end_date = _today_in_timezone(st.session_state["user_timezone"])
+    st.session_state["start_date"] = end_date - timedelta(days=presets[preset])
+    st.session_state["end_date"] = end_date
 
     st.sidebar.markdown("---")
 

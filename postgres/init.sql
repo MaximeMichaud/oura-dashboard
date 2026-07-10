@@ -1,6 +1,8 @@
 -- Oura Dashboard - PostgreSQL Schema
 -- All tables are idempotent (IF NOT EXISTS)
 
+BEGIN;
+
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
 
 CREATE TABLE IF NOT EXISTS sleep (
@@ -369,3 +371,5 @@ END $$;
 
 -- Make last_sync_date nullable for existing databases (new sync_log rows may start without a date)
 ALTER TABLE sync_log ALTER COLUMN last_sync_date DROP NOT NULL;
+
+COMMIT;

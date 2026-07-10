@@ -11,6 +11,8 @@ import pytest
 
 try:
     from sqlalchemy import create_engine, text
+    from sqlalchemy.engine import make_url
+    from sqlalchemy.exc import DBAPIError
 
     HAS_SQLALCHEMY = True
 except ImportError:
@@ -40,6 +42,110 @@ pytestmark = pytest.mark.skipif(not _db_available(), reason="PostgreSQL not avai
 @pytest.fixture(scope="module")
 def pg_engine():
     return _get_engine()
+
+
+@pytest.fixture(scope="module")
+def grafana_engine():
+    admin_url = make_url(os.getenv("TEST_DATABASE_URL", "postgresql://oura:oura@localhost:5432/oura"))
+    url = admin_url.set(
+        username="oura_grafana",
+        password=os.getenv("GRAFANA_DB_PASSWORD", "oura_grafana"),
+    )
+    engine = create_engine(url)
+    try:
+        yield engine
+    finally:
+        engine.dispose()
+
+
+class TestGrafanaRoleIsolation:
+    def test_role_is_restricted_and_read_only_by_default(self, pg_engine):
+        with pg_engine.connect() as conn:
+            role = (
+                conn.execute(
+                    text(
+                        """
+                    SELECT rolcanlogin, rolsuper, rolcreatedb, rolcreaterole,
+                           rolinherit, rolreplication, rolbypassrls,
+                           COALESCE(rolconfig, ARRAY[]::text[]) AS settings
+                    FROM pg_catalog.pg_roles
+                    WHERE rolname = 'oura_grafana'
+                    """
+                    )
+                )
+                .mappings()
+                .one()
+            )
+
+        assert role["rolcanlogin"] is True
+        assert role["rolsuper"] is False
+        assert role["rolcreatedb"] is False
+        assert role["rolcreaterole"] is False
+        assert role["rolinherit"] is False
+        assert role["rolreplication"] is False
+        assert role["rolbypassrls"] is False
+        assert "default_transaction_read_only=on" in role["settings"]
+
+    def test_table_grants_exclude_oauth_state_and_writes(self, pg_engine):
+        with pg_engine.connect() as conn:
+            privileges = (
+                conn.execute(
+                    text(
+                        """
+                    SELECT
+                        has_table_privilege('oura_grafana', 'public.daily_sleep', 'SELECT') AS can_select,
+                        has_table_privilege('oura_grafana', 'public.daily_sleep', 'INSERT') AS can_insert,
+                        has_table_privilege('oura_grafana', 'public.oauth_token_state', 'SELECT') AS can_read_oauth
+                    """
+                    )
+                )
+                .mappings()
+                .one()
+            )
+
+        assert privileges == {"can_select": True, "can_insert": False, "can_read_oauth": False}
+
+    def test_future_tables_are_not_granted_by_default(self, pg_engine):
+        with pg_engine.connect() as conn:
+            has_default_select = conn.execute(
+                text(
+                    """
+                    SELECT EXISTS (
+                        SELECT 1
+                        FROM pg_catalog.pg_default_acl AS defaults
+                        JOIN pg_catalog.pg_namespace AS namespace
+                          ON namespace.oid = defaults.defaclnamespace
+                        CROSS JOIN LATERAL pg_catalog.aclexplode(
+                            COALESCE(
+                                defaults.defaclacl,
+                                pg_catalog.acldefault(defaults.defaclobjtype, defaults.defaclrole)
+                            )
+                        ) AS privilege
+                        JOIN pg_catalog.pg_roles AS grantee ON grantee.oid = privilege.grantee
+                        WHERE namespace.nspname = 'public'
+                          AND defaults.defaclobjtype = 'r'
+                          AND grantee.rolname = 'oura_grafana'
+                          AND privilege.privilege_type = 'SELECT'
+                    )
+                    """
+                )
+            ).scalar_one()
+
+        assert has_default_select is False
+
+    def test_select_is_allowed(self, grafana_engine):
+        with grafana_engine.connect() as conn:
+            assert conn.execute(text("SELECT count(*) FROM public.daily_sleep")).scalar_one() >= 0
+
+    def test_insert_is_refused(self, grafana_engine):
+        with grafana_engine.connect() as conn:
+            with pytest.raises(DBAPIError):
+                conn.execute(text("INSERT INTO public.daily_sleep (day) VALUES ('1900-01-01')"))
+
+    def test_oauth_state_is_inaccessible(self, grafana_engine):
+        with grafana_engine.connect() as conn:
+            with pytest.raises(DBAPIError):
+                conn.execute(text("SELECT provider FROM public.oauth_token_state LIMIT 1"))
 
 
 class TestSleepPrimaryView:

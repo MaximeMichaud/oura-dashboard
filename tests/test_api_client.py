@@ -67,7 +67,7 @@ class TestRateLimitError:
 
 class TestFetchAll:
     def _make_client(self):
-        return OuraClient(token="test-token")
+        return OuraClient(token="test-token", user_timezone="UTC")
 
     def test_empty_response(self):
         client = self._make_client()
@@ -126,6 +126,14 @@ class TestFetchAll:
         assert params["end_datetime"].startswith("2024-01-02T23:59:59")
         assert "start_date" not in params
 
+    def test_datetime_query_uses_local_day_boundaries(self):
+        client = OuraClient(token="test-token", user_timezone="America/Toronto")
+
+        params = client._range_params("2024-01-01", "2024-01-02", "datetime")
+
+        assert params["start_datetime"] == "2024-01-01T05:00:00+00:00"
+        assert params["end_datetime"] == "2024-01-03T04:59:59.999999+00:00"
+
     def test_no_range_collection(self):
         client = self._make_client()
         resp = Mock(status_code=200, raise_for_status=Mock())
@@ -165,7 +173,7 @@ class TestFetchAll:
             end = datetime.fromisoformat(params["end_datetime"])
             assert end - start <= timedelta(days=30)
 
-    def test_404_returns_empty(self):
+    def test_collection_404_is_reraised(self):
         client = self._make_client()
         error_resp = Mock(status_code=404)
         exc = requests.HTTPError(response=error_resp)
@@ -175,8 +183,32 @@ class TestFetchAll:
         client.session = Mock(headers={})
         client.session.get.return_value = resp
 
-        results = list(client.fetch_all("nonexistent", "2024-01-01", "2024-01-31"))
+        with pytest.raises(requests.HTTPError) as exc_info:
+            list(client.fetch_all("nonexistent", "2024-01-01", "2024-01-31"))
+
+        assert exc_info.value is exc
+
+    def test_singleton_404_returns_empty(self):
+        client = self._make_client()
+        exc = requests.HTTPError(response=Mock(status_code=404))
+        client._get = Mock(side_effect=exc)
+
+        results = list(client.fetch_all("personal_info", query_mode="none", response_mode="single"))
+
         assert results == []
+
+    def test_repeated_next_token_raises(self):
+        client = self._make_client()
+        first = Mock()
+        first.json.return_value = {"data": [{"day": "2024-01-01"}], "next_token": "repeat"}
+        second = Mock()
+        second.json.return_value = {"data": [{"day": "2024-01-02"}], "next_token": "repeat"}
+        client._get = Mock(side_effect=[first, second])
+
+        with pytest.raises(RuntimeError, match="Pagination cycle"):
+            list(client.fetch_all("daily_sleep", "2024-01-01", "2024-01-31"))
+
+        assert client._get.call_count == 2
 
     def test_401_refreshes_oauth_token_once(self):
         token_provider = Mock()

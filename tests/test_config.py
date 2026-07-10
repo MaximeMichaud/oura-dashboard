@@ -1,5 +1,8 @@
 import os
 import time
+from datetime import date
+from unittest.mock import patch
+from zoneinfo import ZoneInfo
 
 import pytest
 
@@ -26,6 +29,7 @@ class TestConfigDefaults:
             "POSTGRES_USER",
             "POSTGRES_PASSWORD",
             "HISTORY_START_DATE",
+            "USER_TIMEZONE",
             "SYNC_INTERVAL_MINUTES",
             "OVERLAP_DAYS",
             "TIMESERIES_HISTORY_DAYS",
@@ -50,8 +54,9 @@ class TestConfigDefaults:
             assert cfg.POSTGRES_USER == "oura"
             assert cfg.POSTGRES_PASSWORD == "oura"
             assert cfg.HISTORY_START_DATE == "2020-01-01"
+            assert cfg.USER_TIMEZONE == "UTC"
             assert cfg.SYNC_INTERVAL_MINUTES == 30
-            assert cfg.OVERLAP_DAYS == 2
+            assert cfg.OVERLAP_DAYS == 8
             assert cfg.TIMESERIES_HISTORY_DAYS == 90
         finally:
             os.environ.clear()
@@ -72,6 +77,7 @@ class TestConfigDefaults:
         os.environ["POSTGRES_DB"] = "mydb"
         os.environ["POSTGRES_USER"] = "myuser"
         os.environ["POSTGRES_PASSWORD"] = "mypass"
+        os.environ["USER_TIMEZONE"] = "America/Toronto"
         os.environ["SYNC_INTERVAL_MINUTES"] = "60"
         os.environ["OVERLAP_DAYS"] = "5"
         os.environ["TIMESERIES_HISTORY_DAYS"] = "30"
@@ -90,12 +96,34 @@ class TestConfigDefaults:
             assert cfg.OURA_OAUTH_SCOPES == "daily workout"
             assert cfg.POSTGRES_HOST == "db.example.com"
             assert cfg.POSTGRES_PORT == "5433"
+            assert cfg.USER_TIMEZONE == "America/Toronto"
             assert cfg.SYNC_INTERVAL_MINUTES == 60
             assert cfg.OVERLAP_DAYS == 5
             assert cfg.TIMESERIES_HISTORY_DAYS == 30
         finally:
             os.environ.clear()
             os.environ.update(env_backup)
+
+    def test_local_date_uses_configured_timezone(self, monkeypatch):
+        monkeypatch.setenv("USER_TIMEZONE", "Pacific/Kiritimati")
+
+        from oura_ingest.config import Config
+
+        cfg = Config()
+        with patch("oura_ingest.config.datetime") as mock_datetime:
+            mock_datetime.now.return_value.date.return_value = date(2025, 1, 2)
+
+            assert cfg.local_date() == date(2025, 1, 2)
+
+        mock_datetime.now.assert_called_once_with(ZoneInfo("Pacific/Kiritimati"))
+
+    def test_invalid_timezone_is_rejected(self, monkeypatch):
+        monkeypatch.setenv("USER_TIMEZONE", "Invalid/Timezone")
+
+        from oura_ingest.config import Config
+
+        with pytest.raises(ValueError, match="USER_TIMEZONE"):
+            Config()
 
 
 class TestDatabaseUrl:

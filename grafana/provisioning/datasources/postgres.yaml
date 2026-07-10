@@ -5,12 +5,12 @@ datasources:
     uid: oura-pg
     type: grafana-postgresql-datasource
     access: proxy
-    url: postgres:5432
-    database: oura
-    user: oura
+    url: $POSTGRES_HOST:$POSTGRES_PORT
+    database: $POSTGRES_DB
+    user: $GRAFANA_DB_USER
     isDefault: true
     jsonData:
       sslmode: disable
       postgresVersion: 1800
     secureJsonData:
-      password: $POSTGRES_PASSWORD
+      password: $GRAFANA_DB_PASSWORD

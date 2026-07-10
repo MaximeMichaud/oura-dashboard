@@ -802,7 +802,7 @@
       "targets": [
         {
           "datasource": { "type": "grafana-postgresql-datasource", "uid": "oura-pg" },
-          "rawSql": "SELECT endpoint, last_sync_date, updated_at, CASE WHEN now() - updated_at < interval '2 hours' THEN 1 ELSE 0 END AS fresh FROM sync_log ORDER BY endpoint",
+          "rawSql": "SELECT endpoint, last_sync_date, last_success_at, consecutive_failures, CASE WHEN consecutive_failures = 0 AND last_success_at IS NOT NULL AND now() - last_success_at < interval '2 hours' THEN 1 ELSE 0 END AS fresh FROM sync_log ORDER BY endpoint",
           "format": "table",
           "refId": "A"
         }

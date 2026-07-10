@@ -958,7 +958,7 @@
             "type": "grafana-postgresql-datasource",
             "uid": "oura-pg"
           },
-          "rawSql": "SELECT NULLIF(score, 0) FROM daily_activity WHERE day <= ($__timeTo()::timestamptz)::date ORDER BY day DESC LIMIT 1",
+          "rawSql": "SELECT score FROM daily_activity WHERE day <= ($__timeTo()::timestamptz)::date AND score IS NOT NULL AND score <> 0 ORDER BY day DESC LIMIT 1",
           "format": "table"
         }
       ],

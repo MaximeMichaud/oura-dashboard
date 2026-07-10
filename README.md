@@ -123,13 +123,17 @@ All settings are in `.env`:
 | `OURA_REDIRECT_URI` | `http://localhost:8765/callback` | OAuth redirect URI registered in the Oura application. |
 | `OURA_OAUTH_SCOPES` | see `.env.example` | OAuth scopes requested by the local setup helper. |
 | `HISTORY_START_DATE` | `2020-01-01` | Start date for initial import |
+| `USER_TIMEZONE` | `America/Toronto` | Local timezone used for API date boundaries and Streamlit ranges |
 | `SYNC_INTERVAL_MINUTES` | `30` | Sync frequency |
-| `OVERLAP_DAYS` | `2` | Days of overlap for incremental sync |
+| `OVERLAP_DAYS` | `8` | Days of overlap for incremental sync, covering Ring 4 and Gen3 offline storage |
 | `TIMESERIES_HISTORY_DAYS` | `90` | Initial history imported for heart rate and battery time series |
 | `LOG_LEVEL` | `INFO` | Python logging level |
+| `BIND_ADDRESS` | `127.0.0.1` | Host interface used by Grafana and Streamlit |
 | `GRAFANA_PORT` | `3000` | Grafana port |
+| `STREAMLIT_PORT` | `8501` | Streamlit port |
 | `GF_ADMIN_USER` | `admin` | Grafana admin username |
 | `GF_ADMIN_PASSWORD` | `admin` | Grafana admin password |
+| `GRAFANA_DB_PASSWORD` | `oura_grafana` | Password for Grafana's dedicated read-only PostgreSQL role |
 | `POSTGRES_HOST` | `postgres` | PostgreSQL host (inside Docker network) |
 | `POSTGRES_PORT` | `5432` | PostgreSQL port |
 | `POSTGRES_DB` | `oura` | PostgreSQL database name |
@@ -215,7 +219,7 @@ read endpoint in the current [OpenAPI 1.35 specification](https://cloud.ouraring
 | Legacy token expired | Use OAuth setup, or update `OURA_TOKEN` if you still have a valid legacy token, then `docker compose --profile ingestion up -d` |
 | "No data" on panels | Check `make status` - if sync_log is empty, the initial import is still running |
 | PostgreSQL connection refused | Wait for the healthcheck - Postgres can take a few seconds to start |
-| Postgres container stays unhealthy after a major version bump | A new PostgreSQL major cannot reuse an older version's data volume. Dump and restore manually, or reset with `docker compose down -v && make up` to re-import |
+| Postgres container stays unhealthy after a major version bump | A new PostgreSQL major cannot reuse an older version's data volume. Dump and restore manually, or reset with `docker compose down -v && make up-full` to re-import |
 | Ingestion stuck | Check `docker compose logs ingestion` for error details |
 | Nested `_stcore` 404s on Streamlit subpages | This is a [confirmed Streamlit multipage bug](https://github.com/streamlit/streamlit/issues/7074). Streamlit also calls the valid root endpoints; verify `/_stcore/health` returns HTTP 200. |
 
@@ -223,5 +227,5 @@ read endpoint in the current [OpenAPI 1.35 specification](https://cloud.ouraring
 
 ```bash
 docker compose down -v   # removes all data volumes
-make up                  # fresh start, re-imports from HISTORY_START_DATE
+make up-full             # fresh start, re-imports from HISTORY_START_DATE
 ```

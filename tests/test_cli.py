@@ -1,6 +1,7 @@
 """Tests for oura_ingest.cli (task 41)."""
 
 import signal
+from datetime import date
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -86,6 +87,23 @@ class TestShutdown:
             assert _stop.is_set()
         finally:
             _stop.clear()
+
+
+def test_token_smoke_test_uses_local_date():
+    from oura_ingest import cli
+
+    client = MagicMock()
+    client.fetch_all.return_value = iter(())
+    with (
+        patch.object(cli, "_load_ingestion_dependencies"),
+        patch.object(cli, "OuraClient", return_value=client),
+        patch.object(cli, "cfg") as mock_cfg,
+    ):
+        mock_cfg.local_date.return_value = date(2025, 1, 8)
+
+        assert cli._test_token("access-token") == 0
+
+    client.fetch_all.assert_called_once_with("daily_sleep", "2025-01-01", "2025-01-08")
 
 
 class TestInitialSyncTokenExpired:
