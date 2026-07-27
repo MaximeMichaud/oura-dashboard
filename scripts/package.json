@@ -3,6 +3,6 @@
   "private": true,
   "type": "module",
   "devDependencies": {
-    "playwright": "1.61.1"
+    "playwright": "1.62.0"
   }
 }
