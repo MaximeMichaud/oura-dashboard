@@ -1,5 +1,5 @@
 streamlit==1.62.0
-plotly==6.9.0
+plotly==7.0.0
 pandas==3.0.5
 sqlalchemy==2.0.52
 psycopg2-binary==2.9.12
