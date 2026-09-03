@@ -51,12 +51,12 @@ jobs:
           args: format --check tests/
 
       - name: Hadolint - ingestion/Dockerfile
-        uses: hadolint/hadolint-action@v3.3.0
+        uses: hadolint/hadolint-action@v3.5.0
         with:
           dockerfile: ingestion/Dockerfile
 
       - name: Hadolint - streamlit/Dockerfile
-        uses: hadolint/hadolint-action@v3.3.0
+        uses: hadolint/hadolint-action@v3.5.0
         with:
           dockerfile: streamlit/Dockerfile
 
@@ -157,7 +157,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v7
         with:
-          python-version: "3.14.6"
+          python-version: "3.14.7"
           allow-prereleases: true
           cache: pip
           cache-dependency-path: |
