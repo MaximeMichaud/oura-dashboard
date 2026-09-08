@@ -23,31 +23,43 @@ jobs:
       - name: Ruff check - ingestion
         uses: astral-sh/ruff-action@v4.1.0
         with:
+          # renovate: datasource=pypi depName=ruff
+          version: "0.15.8"
           args: check ingestion/
 
       - name: Ruff check - streamlit
         uses: astral-sh/ruff-action@v4.1.0
         with:
+          # renovate: datasource=pypi depName=ruff
+          version: "0.15.8"
           args: check streamlit/
 
       - name: Ruff check - tests
         uses: astral-sh/ruff-action@v4.1.0
         with:
+          # renovate: datasource=pypi depName=ruff
+          version: "0.15.8"
           args: check tests/
 
       - name: Ruff format check - ingestion
         uses: astral-sh/ruff-action@v4.1.0
         with:
+          # renovate: datasource=pypi depName=ruff
+          version: "0.15.8"
           args: format --check ingestion/
 
       - name: Ruff format check - streamlit
         uses: astral-sh/ruff-action@v4.1.0
         with:
+          # renovate: datasource=pypi depName=ruff
+          version: "0.15.8"
           args: format --check streamlit/
 
       - name: Ruff format check - tests
         uses: astral-sh/ruff-action@v4.1.0
         with:
+          # renovate: datasource=pypi depName=ruff
+          version: "0.15.8"
           args: format --check tests/
 
       - name: Hadolint - ingestion/Dockerfile

@@ -110,21 +110,46 @@ function hasIssues(issues) {
   );
 }
 
-async function captureScrollableDashboard(page, screenshotPath) {
-  const scroller = page.locator('[data-testid*="DashboardEditPaneSplitter body container"]').first();
-  await scroller.waitFor({ state: "visible", timeout: 30000 });
+async function resolveScroller(page) {
+  const tagged = page.locator('[data-testid*="DashboardEditPaneSplitter body container"]').first();
+  try {
+    await tagged.waitFor({ state: "visible", timeout: 5000 });
+    return tagged;
+  } catch {
+    // Grafana 13.2+ no longer renders this test id.
+  }
+  const handle = await page.evaluateHandle(() => {
+    let best = null;
+    let bestArea = 0;
+    for (const el of document.querySelectorAll("div")) {
+      if (el.scrollHeight <= el.clientHeight + 2) continue;
+      const area = el.clientWidth * el.clientHeight;
+      if (area > bestArea) {
+        best = el;
+        bestArea = area;
+      }
+    }
+    return best;
+  });
+  return handle.asElement();
+}
 
-  const containerDimensions = await scroller.evaluate((element) => ({
-    clientHeight: element.clientHeight,
-    scrollHeight: element.scrollHeight,
-  }));
+async function captureScrollableDashboard(page, screenshotPath) {
+  const scroller = await resolveScroller(page);
+  const containerDimensions = scroller
+    ? await scroller.evaluate((element) => ({
+        clientHeight: element.clientHeight,
+        scrollHeight: element.scrollHeight,
+      }))
+    : { clientHeight: 0, scrollHeight: 0 };
   const windowDimensions = await page.evaluate(() => ({
     clientHeight: window.innerHeight,
     scrollHeight: document.documentElement.scrollHeight,
   }));
   const useWindow =
-    containerDimensions.scrollHeight <= containerDimensions.clientHeight + 2 &&
-    windowDimensions.scrollHeight > windowDimensions.clientHeight + 2;
+    !scroller ||
+    (containerDimensions.scrollHeight <= containerDimensions.clientHeight + 2 &&
+      windowDimensions.scrollHeight > windowDimensions.clientHeight + 2);
   const dimensions = useWindow ? windowDimensions : containerDimensions;
   const maxScrollTop = Math.max(0, dimensions.scrollHeight - dimensions.clientHeight);
   const step = Math.max(1, Math.floor(dimensions.clientHeight * 0.8));
