@@ -28,7 +28,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v7
         with:
-          python-version: "3.14.6"
+          python-version: "3.14.7"
           allow-prereleases: true
 
       - name: Install pip-audit
@@ -100,6 +100,6 @@ jobs:
           fetch-depth: 0
 
       - name: TruffleHog secret scan
-        uses: trufflesecurity/trufflehog@v3.96.0
+        uses: trufflesecurity/trufflehog@v3.97.4
         with:
           extra_args: --only-verified
