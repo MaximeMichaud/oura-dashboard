@@ -1,7 +1,7 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": ["config:recommended"],
-  "enabledManagers": ["docker-compose", "dockerfile", "pip_requirements", "npm", "github-actions"],
+  "enabledManagers": ["docker-compose", "dockerfile", "pip_requirements", "npm", "github-actions", "pre-commit"],
   "ignorePaths": [
     "oura-data-visualiser/**",
     "Oura-Ring-Sleep-Coach/**",
@@ -10,9 +10,24 @@
   ],
   "schedule": ["before 6am on Monday"],
   "labels": ["dependencies"],
-  "dependencyDashboard": false,
+  "dependencyDashboard": true,
   "rangeStrategy": "bump",
+  "automerge": true,
+  "automergeType": "pr",
+  "platformAutomerge": true,
+  "minimumReleaseAge": "3 days",
+  "customManagers": [
+    {
+      "customType": "regex",
+      "managerFilePatterns": ["/^\\.github/workflows/.+\\.yaml$/"],
+      "matchStrings": ["# renovate: datasource=(?<datasource>.*?) depName=(?<depName>.*?)\\s+version: \"(?<currentValue>.*?)\""]
+    }
+  ],
   "packageRules": [
+    {
+      "matchUpdateTypes": ["major"],
+      "automerge": false
+    },
     {
       "matchManagers": ["docker-compose", "dockerfile"],
       "groupName": "Docker images"
@@ -28,6 +43,10 @@
     {
       "matchManagers": ["github-actions"],
       "groupName": "GitHub Actions"
+    },
+    {
+      "matchManagers": ["pre-commit"],
+      "groupName": "pre-commit hooks"
     }
   ]
 }
