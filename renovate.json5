@@ -19,7 +19,7 @@
   "customManagers": [
     {
       "customType": "regex",
-      "managerFilePatterns": ["/^\\.github/workflows/.+\\.yaml$/"],
+      "fileMatch": ["^\\.github/workflows/.+\\.yaml$"],
       "matchStrings": ["# renovate: datasource=(?<datasource>.*?) depName=(?<depName>.*?)\\s+version: \"(?<currentValue>.*?)\""]
     }
   ],
