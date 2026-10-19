@@ -15,7 +15,7 @@ def get_engine():
     user = os.environ.get("POSTGRES_USER", "oura")
     pw = os.environ.get("POSTGRES_PASSWORD", "oura")
     url = URL.create(
-        "postgresql",
+        "postgresql+psycopg2",
         username=user,
         password=pw,
         host=host,

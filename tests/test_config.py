@@ -139,7 +139,7 @@ class TestDatabaseUrl:
             from oura_ingest.config import Config
 
             cfg = Config()
-            assert cfg.database_url == "postgresql://myuser:mypass@myhost:5433/mydb"
+            assert cfg.database_url == "postgresql+psycopg2://myuser:mypass@myhost:5433/mydb"
         finally:
             os.environ.clear()
             os.environ.update(env_backup)

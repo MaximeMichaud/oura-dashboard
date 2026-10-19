@@ -20,7 +20,7 @@ except ImportError:
 
 
 def _get_engine():
-    url = os.getenv("TEST_DATABASE_URL", "postgresql://oura:oura@localhost:5432/oura")
+    url = os.getenv("TEST_DATABASE_URL", "postgresql+psycopg2://oura:oura@localhost:5432/oura")
     return create_engine(url)
 
 
@@ -46,7 +46,7 @@ def pg_engine():
 
 @pytest.fixture(scope="module")
 def grafana_engine():
-    admin_url = make_url(os.getenv("TEST_DATABASE_URL", "postgresql://oura:oura@localhost:5432/oura"))
+    admin_url = make_url(os.getenv("TEST_DATABASE_URL", "postgresql+psycopg2://oura:oura@localhost:5432/oura"))
     url = admin_url.set(
         username="oura_grafana",
         password=os.getenv("GRAFANA_DB_PASSWORD", "oura_grafana"),

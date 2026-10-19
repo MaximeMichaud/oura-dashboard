@@ -5,6 +5,29 @@ from unittest.mock import MagicMock, Mock, patch
 import pytest
 
 
+class TestInstalledPostgresDriver:
+    def test_ingestion_engine_loads_installed_driver(self):
+        from oura_ingest.config import Config
+        from sqlalchemy import create_engine
+
+        engine = create_engine(Config().database_url)
+        try:
+            assert engine.dialect.dbapi.__name__ == "psycopg2"
+        finally:
+            engine.dispose()
+
+    def test_streamlit_engine_loads_installed_driver(self):
+        from components.db import get_engine
+
+        get_engine.clear()
+        engine = get_engine()
+        try:
+            assert engine.dialect.dbapi.__name__ == "psycopg2"
+        finally:
+            engine.dispose()
+            get_engine.clear()
+
+
 class TestWaitForDb:
     def test_immediate_success(self):
         """Database available on first try."""

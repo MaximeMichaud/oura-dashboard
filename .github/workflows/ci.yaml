@@ -162,7 +162,7 @@ jobs:
           --health-timeout 3s
           --health-retries 10
     env:
-      TEST_DATABASE_URL: postgresql://oura:oura@localhost:5432/oura
+      TEST_DATABASE_URL: postgresql+psycopg2://oura:oura@localhost:5432/oura
     steps:
       - uses: actions/checkout@v7
 
