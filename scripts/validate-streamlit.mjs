@@ -1,11 +1,12 @@
 import { existsSync } from "node:fs";
 import fs from "node:fs/promises";
+import os from "node:os";
 import path from "node:path";
 import process from "node:process";
 import { chromium } from "playwright";
 
 const baseUrl = process.env.STREAMLIT_URL || "http://localhost:8501";
-const outputRoot = "/tmp/streamlit";
+const outputRoot = path.join(os.tmpdir(), "streamlit");
 const pages = [
   { route: "", slug: "root", title: "Oura Dashboard", icon: "health_metrics", expectPlot: false },
   { route: "Overview", title: "Overview", icon: "dashboard", expectPlot: true },
@@ -37,7 +38,7 @@ function isKnownConsoleNoise(message) {
   try {
     const pathname = new URL(message.location().url).pathname;
     return (
-      /Failed to load resource:.*404 \(Not Found\)/i.test(message.text()) &&
+      /Failed to load resource:.*404 \((?:Not Found)?\)/i.test(message.text()) &&
       /\/_stcore\/(health|host-config)$/.test(pathname)
     );
   } catch {

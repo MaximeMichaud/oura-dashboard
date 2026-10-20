@@ -155,7 +155,7 @@ make migrate   # apply the idempotent schema to an existing database volume
 ## UI Validation
 
 The headless Playwright validators capture the provisioned dashboards and Streamlit pages at desktop and mobile
-sizes. Screenshots are written to `/tmp`.
+sizes. Screenshots are written under the system temporary directory (`TMPDIR` when set).
 
 ```bash
 npm install --prefix scripts

@@ -1,11 +1,12 @@
 import { existsSync } from "node:fs";
 import fs from "node:fs/promises";
+import os from "node:os";
 import path from "node:path";
 import process from "node:process";
 import { chromium } from "playwright";
 
 const baseUrl = process.env.GRAFANA_URL || "http://localhost:3000";
-const outputRoot = "/tmp/panels";
+const outputRoot = path.join(os.tmpdir(), "panels");
 const requested = process.argv.slice(2);
 const defaultUids = [
   "oura-overview",
