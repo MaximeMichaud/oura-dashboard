@@ -1,11 +1,11 @@
-certifi==2026.7.22
+certifi==2026.10.19
 charset-normalizer==3.5.2
 greenlet==3.5.6
 idna==3.20
 psycopg2-binary==2.9.13
 requests==2.34.2
 schedule==1.2.2
-sqlalchemy==2.1.4
+sqlalchemy==2.1.6
 tenacity==9.2.1
 typing-extensions==4.16.0
 urllib3==2.8.0
