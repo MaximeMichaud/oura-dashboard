@@ -75,7 +75,11 @@ function monitorPage(page) {
               .filter(Boolean);
             return resultErrors.length ? resultErrors.join("; ") : null;
           } catch (error) {
-            if (error.message.includes("Network.getResponseBody") && error.message.includes("No resource")) {
+            if (
+              error.message.includes("Network.getResponseBody") &&
+              (error.message.includes("No resource") ||
+                error.message.includes("Response body is not available for a response that was navigated away from"))
+            ) {
               return null;
             }
             return `Invalid datasource response: ${error.message}`;
@@ -115,7 +119,11 @@ async function resolveScroller(page) {
   const tagged = page.locator('[data-testid*="DashboardEditPaneSplitter body container"]').first();
   try {
     await tagged.waitFor({ state: "visible", timeout: 5000 });
-    return tagged;
+    const scrollable = await tagged.evaluate((element) =>
+      /^(auto|scroll)$/.test(getComputedStyle(element).overflowY) &&
+      element.scrollHeight > element.clientHeight + 2,
+    );
+    if (scrollable) return tagged;
   } catch {
     // Grafana 13.2+ no longer renders this test id.
   }
@@ -124,6 +132,7 @@ async function resolveScroller(page) {
     let bestArea = 0;
     for (const el of document.querySelectorAll("div")) {
       if (el.scrollHeight <= el.clientHeight + 2) continue;
+      if (!/^(auto|scroll)$/.test(getComputedStyle(el).overflowY)) continue;
       const area = el.clientWidth * el.clientHeight;
       if (area > bestArea) {
         best = el;
@@ -162,12 +171,23 @@ async function captureScrollableDashboard(page, screenshotPath) {
 
   const parsedPath = path.parse(screenshotPath);
   for (const [index, scrollTop] of [...new Set(positions)].entries()) {
+    let actualScrollTop;
     if (useWindow) {
-      await page.evaluate((top) => window.scrollTo({ top, behavior: "instant" }), scrollTop);
+      actualScrollTop = await page.evaluate((top) => {
+        window.scrollTo({ top, behavior: "instant" });
+        return window.scrollY;
+      }, scrollTop);
     } else {
-      await scroller.evaluate((element, top) => element.scrollTo({ top, behavior: "instant" }), scrollTop);
+      actualScrollTop = await scroller.evaluate((element, top) => {
+        element.scrollTo({ top, behavior: "instant" });
+        return element.scrollTop;
+      }, scrollTop);
+    }
+    if (scrollTop > 2 && actualScrollTop < 1) {
+      throw new Error(`Dashboard did not scroll to ${scrollTop}px`);
     }
     await page.waitForTimeout(750);
+    await page.waitForLoadState("networkidle", { timeout: 30000 });
     await page.screenshot({
       path: path.join(parsedPath.dir, `${parsedPath.name}-scroll-${String(index + 1).padStart(2, "0")}${parsedPath.ext}`),
     });
@@ -210,6 +230,7 @@ try {
 
       const dashboardUrl = `${baseUrl}/d/${uid}/${slug}?orgId=1&${range}`;
       await page.goto(dashboardUrl, { waitUntil: "networkidle", timeout: 30000 });
+      await page.getByRole("heading").first().waitFor({ state: "visible", timeout: 30000 });
       await page.waitForTimeout(1000);
       await captureScrollableDashboard(page, path.join(outputDir, `dashboard-${viewportName}.png`));
       const dashboardText = await page.locator("body").innerText();
@@ -226,6 +247,8 @@ try {
       for (const panel of panels) {
         const url = `${baseUrl}/d-solo/${uid}/${slug}?orgId=1&panelId=${panel.id}&${range}`;
         await page.goto(url, { waitUntil: "networkidle", timeout: 30000 });
+        await page.getByRole("heading").first().waitFor({ state: "visible", timeout: 30000 });
+        await page.waitForLoadState("networkidle");
         await page.waitForTimeout(750);
         const bodyText = await page.locator("body").innerText();
         const key = `${uid}:${panel.id}`;
