@@ -199,3 +199,42 @@ def test_today_uses_selected_timezone():
 
     assert _today_in_timezone("America/Toronto", instant) == date(2026, 7, 8)
     assert _today_in_timezone("Asia/Tokyo", instant) == date(2026, 7, 9)
+
+
+def test_api_cache_expires_so_new_sync_data_becomes_visible(monkeypatch):
+    monkeypatch.setattr(providers.st, "session_state", {})
+    clock = Mock(return_value=1000)
+    monkeypatch.setattr("data.api_provider.time.monotonic", clock)
+    provider = ApiProvider("test-token")
+    provider._fetch = Mock(side_effect=[[], [{"day": "2026-07-08", "score": 90}]])
+    args = ("daily_sleep", date(2026, 7, 1), date(2026, 7, 8))
+
+    assert provider._fetch_cached(*args) == []
+    clock.return_value = 1299
+    assert provider._fetch_cached(*args) == []
+    provider._fetch.assert_called_once()
+    clock.return_value = 1300
+    assert provider._fetch_cached(*args) == [{"day": "2026-07-08", "score": 90}]
+
+
+def test_api_cache_is_isolated_between_accounts(monkeypatch):
+    monkeypatch.setattr(providers.st, "session_state", {})
+    first = ApiProvider("first-account-token")
+    second = ApiProvider("second-account-token")
+    first._fetch = Mock(return_value=[{"score": 90}])
+    second._fetch = Mock(return_value=[{"score": 50}])
+
+    assert first._fetch_cached("daily_sleep") == [{"score": 90}]
+    assert second._fetch_cached("daily_sleep") == [{"score": 50}]
+
+
+def test_api_datetime_cache_changes_with_selected_timezone(monkeypatch):
+    session = {"user_timezone": "America/Toronto"}
+    monkeypatch.setattr(providers.st, "session_state", session)
+    provider = ApiProvider("test-token")
+    provider._fetch = Mock(side_effect=[[{"bpm": 60}], [{"bpm": 70}]])
+    args = ("heartrate", date(2026, 7, 1), date(2026, 7, 8))
+
+    assert provider._fetch_cached(*args, query_mode="datetime") == [{"bpm": 60}]
+    session["user_timezone"] = "Asia/Tokyo"
+    assert provider._fetch_cached(*args, query_mode="datetime") == [{"bpm": 70}]

@@ -19,10 +19,12 @@ class ApiProvider:
     """Fetches data directly from the Oura API v2."""
 
     BASE_URL = "https://api.ouraring.com/v2/usercollection"
+    CACHE_TTL_SECONDS = 300
 
     def __init__(self, token: str):
         self._token = token
         self._headers = {"Authorization": f"Bearer {token}"}
+        self._cache = {}
 
     @staticmethod
     def _user_timezone() -> ZoneInfo:
@@ -147,16 +149,16 @@ class ApiProvider:
         return all_data
 
     def _fetch_cached(self, endpoint, start=None, end=None, *, query_mode="date", response_mode="collection"):
-        key = f"api_{endpoint}_{start}_{end}_{query_mode}_{response_mode}"
-        if key not in st.session_state:
-            st.session_state[key] = self._fetch(
-                endpoint,
-                start,
-                end,
-                query_mode=query_mode,
-                response_mode=response_mode,
-            )
-        return st.session_state[key]
+        # The provider belongs to one account. Timestamp ranges also depend on
+        # the selected timezone, and a new ring sync must expire cached results.
+        timezone_key = str(self._user_timezone()) if query_mode == "datetime" else None
+        key = (endpoint, start, end, query_mode, response_mode, timezone_key)
+        cached = self._cache.get(key)
+        if cached is not None and time.monotonic() - cached[0] < self.CACHE_TTL_SECONDS:
+            return cached[1]
+        data = self._fetch(endpoint, start, end, query_mode=query_mode, response_mode=response_mode)
+        self._cache[key] = (time.monotonic(), data)
+        return data
 
     # ------------------------------------------------------------------
     # Latest scores
