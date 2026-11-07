@@ -1,4 +1,4 @@
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 from unittest.mock import Mock
 
 import pytest
@@ -154,6 +154,31 @@ def test_api_datetime_range_uses_selected_timezone(monkeypatch):
         "start_datetime": "2026-07-07T04:00:00+00:00",
         "end_datetime": "2026-07-09T02:30:00+00:00",
     }
+
+
+@pytest.mark.parametrize("start", [date(2026, 10, 7), date(2026, 8, 8)])
+def test_api_datetime_chunks_respect_30_days_across_fall_back(monkeypatch, start):
+    monkeypatch.setattr(providers.st, "session_state", {"user_timezone": "America/Toronto"})
+    provider = ApiProvider("test-token")
+    provider._request = Mock(return_value=_api_response(data=[]))
+    end = date(2026, 11, 5)
+
+    assert provider._fetch("heartrate", start, end, query_mode="datetime") == []
+
+    ranges = [
+        (
+            datetime.fromisoformat(call.args[1]["start_datetime"]),
+            datetime.fromisoformat(call.args[1]["end_datetime"]),
+        )
+        for call in provider._request.call_args_list
+    ]
+    expected = provider._datetime_range_params(start, end)
+    assert ranges[0][0] == datetime.fromisoformat(expected["start_datetime"])
+    assert ranges[-1][1] == datetime.fromisoformat(expected["end_datetime"])
+    for range_start, range_end in ranges:
+        assert range_end - range_start <= timedelta(days=30)
+    for (_, previous_end), (next_start, _) in zip(ranges, ranges[1:]):
+        assert next_start == previous_end + timedelta(microseconds=1)
 
 
 def test_api_request_retries_transient_network_errors(monkeypatch):

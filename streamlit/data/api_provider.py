@@ -95,17 +95,6 @@ class ApiProvider:
         response_mode: str = "collection",
     ) -> list[dict]:
         """Fetch all pages from an Oura API endpoint."""
-        if query_mode == "datetime" and start and end and (end - start).days >= 30:
-            all_chunks = []
-            current = start
-            while current <= end:
-                chunk_end = min(current + timedelta(days=29), end)
-                all_chunks.extend(
-                    self._fetch(endpoint, current, chunk_end, query_mode=query_mode, response_mode=response_mode)
-                )
-                current = chunk_end + timedelta(days=1)
-            return all_chunks
-
         params: dict[str, Any] = {}
         if query_mode == "date":
             if start:
@@ -116,6 +105,27 @@ class ApiProvider:
             params = self._datetime_range_params(start, end)
         elif query_mode != "none":
             raise ValueError(f"Unknown query mode: {query_mode}")
+
+        if query_mode == "datetime" and start and end:
+            max_range = timedelta(days=30)
+            duration = datetime.fromisoformat(params["end_datetime"]) - datetime.fromisoformat(params["start_datetime"])
+            if duration > max_range:
+                all_chunks = []
+                current = start
+                while current <= end:
+                    chunk_end = min(current + timedelta(days=29), end)
+                    chunk_params = self._datetime_range_params(current, chunk_end)
+                    chunk_duration = datetime.fromisoformat(chunk_params["end_datetime"]) - datetime.fromisoformat(
+                        chunk_params["start_datetime"]
+                    )
+                    # Thirty local dates can exceed thirty UTC days when daylight saving ends.
+                    if chunk_duration > max_range:
+                        chunk_end -= timedelta(days=1)
+                    all_chunks.extend(
+                        self._fetch(endpoint, current, chunk_end, query_mode=query_mode, response_mode=response_mode)
+                    )
+                    current = chunk_end + timedelta(days=1)
+                return all_chunks
 
         all_data = []
         url = f"{self.BASE_URL}/{endpoint}"

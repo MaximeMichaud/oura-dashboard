@@ -129,12 +129,22 @@ class OuraClient:
         response_mode: str = "collection",
     ) -> Iterator[dict]:
         """Paginate through an Oura v2 endpoint, yielding each record."""
+        params = self._range_params(start_date, end_date, query_mode)
         if query_mode == "datetime" and start_date and end_date:
             current = date.fromisoformat(start_date)
             final = date.fromisoformat(end_date)
-            if (final - current).days >= 30:
+            max_range = timedelta(days=30)
+            duration = datetime.fromisoformat(params["end_datetime"]) - datetime.fromisoformat(params["start_datetime"])
+            if duration > max_range:
                 while current <= final:
                     chunk_end = min(current + timedelta(days=29), final)
+                    chunk_params = self._range_params(current.isoformat(), chunk_end.isoformat(), query_mode)
+                    chunk_duration = datetime.fromisoformat(chunk_params["end_datetime"]) - datetime.fromisoformat(
+                        chunk_params["start_datetime"]
+                    )
+                    # Thirty local dates can exceed thirty UTC days when daylight saving ends.
+                    if chunk_duration > max_range:
+                        chunk_end -= timedelta(days=1)
                     yield from self.fetch_all(
                         endpoint,
                         current.isoformat(),
@@ -146,7 +156,6 @@ class OuraClient:
                 return
 
         url = f"{BASE_URL}/{endpoint}"
-        params = self._range_params(start_date, end_date, query_mode)
         seen_next_tokens: set[str] = set()
         while True:
             try:

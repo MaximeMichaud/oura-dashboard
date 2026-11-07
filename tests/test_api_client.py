@@ -205,6 +205,30 @@ class TestFetchAll:
             end = datetime.fromisoformat(params["end_datetime"])
             assert end - start <= timedelta(days=30)
 
+    @pytest.mark.parametrize("start_date", ["2026-10-07", "2026-08-08"])
+    def test_datetime_chunks_respect_30_days_across_fall_back(self, start_date):
+        client = OuraClient(token="test-token", user_timezone="America/Toronto")
+        resp = Mock()
+        resp.json.return_value = {"data": [], "next_token": None}
+        client._get = Mock(return_value=resp)
+
+        list(client.fetch_all("heartrate", start_date, "2026-11-05", query_mode="datetime"))
+
+        ranges = [
+            (
+                datetime.fromisoformat(call.args[1]["start_datetime"]),
+                datetime.fromisoformat(call.args[1]["end_datetime"]),
+            )
+            for call in client._get.call_args_list
+        ]
+        expected = client._range_params(start_date, "2026-11-05", "datetime")
+        assert ranges[0][0] == datetime.fromisoformat(expected["start_datetime"])
+        assert ranges[-1][1] == datetime.fromisoformat(expected["end_datetime"])
+        for start, end in ranges:
+            assert end - start <= timedelta(days=30)
+        for (_, previous_end), (next_start, _) in zip(ranges, ranges[1:]):
+            assert next_start == previous_end + timedelta(microseconds=1)
+
     def test_collection_404_is_reraised(self):
         client = self._make_client()
         error_resp = Mock(status_code=404)
