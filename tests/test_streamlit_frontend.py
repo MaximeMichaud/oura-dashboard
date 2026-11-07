@@ -242,6 +242,33 @@ def test_postgres_scores_preserve_days_without_activity(frontend_pg_connection):
     assert frame.iloc[2]["steps"] == 5000
 
 
+def test_postgres_sync_status_does_not_treat_failed_attempts_as_fresh(frontend_pg_connection):
+    conn = frontend_pg_connection
+    conn.execute(
+        text("""
+            CREATE TEMP TABLE sync_log (
+                endpoint text PRIMARY KEY, last_sync_date date, updated_at timestamptz,
+                last_success_at timestamptz, last_error text, consecutive_failures int
+            ) ON COMMIT DROP
+        """)
+    )
+    conn.execute(
+        text("""
+            INSERT INTO sync_log VALUES
+                ('healthy', CURRENT_DATE, now(), now(), NULL, 0),
+                ('failing', CURRENT_DATE, now(), now(), 'HTTP 401', 1),
+                ('stale', CURRENT_DATE - 1, now(), now() - interval '1 day', NULL, 0),
+                ('never_synced', NULL, now(), NULL, NULL, 0)
+        """)
+    )
+
+    frame = PostgresProvider.sync_status.__wrapped__(PostgresProvider())
+    statuses = frame.set_index("endpoint")["status"].to_dict()
+
+    assert statuses == {"healthy": "Fresh", "failing": "Error", "stale": "Stale", "never_synced": "Never synced"}
+    assert frame.set_index("endpoint").loc["failing", "last_error"] == "HTTP 401"
+
+
 def test_api_cache_expires_so_new_sync_data_becomes_visible(monkeypatch):
     monkeypatch.setattr(providers.st, "session_state", {})
     clock = Mock(return_value=1000)

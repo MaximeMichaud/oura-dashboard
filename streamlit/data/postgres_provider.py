@@ -164,8 +164,13 @@ class PostgresProvider:
     @st.cache_data(ttl=60, show_spinner=False)
     def sync_status(_self) -> pd.DataFrame:
         return query_df("""
-            SELECT endpoint, last_sync_date, updated_at,
-                   CASE WHEN now() - updated_at < interval '2 hours' THEN 'Fresh' ELSE 'Stale' END AS status
+            SELECT endpoint, last_sync_date, updated_at, last_success_at, last_error, consecutive_failures,
+                   CASE
+                       WHEN consecutive_failures > 0 OR last_error IS NOT NULL THEN 'Error'
+                       WHEN last_success_at IS NULL THEN 'Never synced'
+                       WHEN now() - last_success_at < interval '2 hours' THEN 'Fresh'
+                       ELSE 'Stale'
+                   END AS status
             FROM sync_log ORDER BY endpoint
         """)
 
