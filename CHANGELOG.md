@@ -1,5 +1,33 @@
 # Changelog
 
+## [0.3.1](https://github.com/MaximeMichaud/oura-dashboard/compare/v0.3.0...v0.3.1) (2026-11-07)
+
+Oura Dashboard 0.3.1 fixes historical date ranges, missing score days, stale API results, and clipped chart legends. It also includes dependency and runtime maintenance since 0.3.0.
+
+### Bug Fixes
+
+* Keep timestamp-based Oura requests within the 30-day UTC limit across daylight-saving transitions in both ingestion and Streamlit.
+* Expire Streamlit API caches after five minutes and isolate cached results by account and selected timezone.
+* Preserve sleep and readiness scores for days without activity records.
+* Show failed or never-completed synchronizations accurately instead of marking recent failed attempts as fresh.
+* Respect the selected historical period and timezone in Grafana, and calculate seven-day averages using calendar days and preceding history.
+* Keep sleep, activity, and state legends readable in Grafana and Streamlit, with enough room for labels and values.
+* Select the installed PostgreSQL driver correctly and use the JSON form of the Streamlit container healthcheck.
+
+### Validation and Maintenance
+
+* Wait for rendered panels and completed datasource requests during browser validation, and verify that long dashboards actually scroll.
+* Support browser checks behind private HTTPS and keep temporary browser artifacts under `TMPDIR`.
+* Include regression tests for DST boundaries, cache expiration and isolation, missing activity days, synchronization failures, and historical Grafana queries.
+* Update Grafana to 13.2.4 and refresh Python, frontend, browser-test, and GitHub Actions dependencies.
+
+### Upgrade Notes
+
+* Upgrading from 0.3.0 does not require a database reset or a new OAuth authorization. Preserve existing volumes and configuration when recreating application containers.
+* Date and display fixes do not automatically backfill gaps older than the configured synchronization overlap. Use a targeted historical sync when older records are available from Oura.
+
+**Full Changelog:** https://github.com/MaximeMichaud/oura-dashboard/compare/v0.3.0...v0.3.1
+
 ## [0.3.0](https://github.com/MaximeMichaud/oura-dashboard/compare/v0.2.0...v0.3.0) (2026-07-10)
 
 Oura Dashboard 0.3.0 adds first-class OAuth support, eight additional Oura API collections, three new dashboards, persistent token rotation, and full-stack release validation. Legacy personal access tokens remain supported.
