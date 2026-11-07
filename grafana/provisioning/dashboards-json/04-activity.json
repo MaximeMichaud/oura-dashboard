@@ -258,7 +258,7 @@
         "x": 0,
         "y": 5,
         "w": 12,
-        "h": 8
+        "h": 12
       },
       "datasource": {
         "type": "grafana-postgresql-datasource",
@@ -325,7 +325,7 @@
         "x": 12,
         "y": 5,
         "w": 6,
-        "h": 8
+        "h": 12
       },
       "datasource": {
         "type": "grafana-postgresql-datasource",
@@ -450,8 +450,8 @@
           "sort": "none"
         },
         "legend": {
-          "displayMode": "list",
-          "placement": "right",
+          "displayMode": "table",
+          "placement": "bottom",
           "values": [
             "value",
             "percent"
@@ -467,7 +467,7 @@
         "x": 18,
         "y": 5,
         "w": 6,
-        "h": 8
+        "h": 12
       },
       "datasource": {
         "type": "grafana-postgresql-datasource",
@@ -534,7 +534,7 @@
       "type": "bargauge",
       "gridPos": {
         "x": 0,
-        "y": 13,
+        "y": 17,
         "w": 10,
         "h": 8
       },
@@ -596,7 +596,7 @@
       "type": "timeseries",
       "gridPos": {
         "x": 10,
-        "y": 13,
+        "y": 17,
         "w": 14,
         "h": 8
       },
@@ -708,7 +708,7 @@
       "type": "timeseries",
       "gridPos": {
         "x": 0,
-        "y": 21,
+        "y": 25,
         "w": 12,
         "h": 8
       },
@@ -804,7 +804,7 @@
       "type": "timeseries",
       "gridPos": {
         "x": 12,
-        "y": 21,
+        "y": 25,
         "w": 12,
         "h": 8
       },
@@ -873,7 +873,7 @@
       "type": "bargauge",
       "gridPos": {
         "x": 0,
-        "y": 29,
+        "y": 33,
         "w": 12,
         "h": 8
       },
@@ -943,7 +943,7 @@
       "type": "gauge",
       "gridPos": {
         "x": 12,
-        "y": 29,
+        "y": 33,
         "w": 6,
         "h": 8
       },
@@ -1010,7 +1010,7 @@
       "type": "timeseries",
       "gridPos": {
         "x": 18,
-        "y": 29,
+        "y": 33,
         "w": 6,
         "h": 8
       },
@@ -1081,7 +1081,7 @@
       "type": "table",
       "gridPos": {
         "x": 0,
-        "y": 37,
+        "y": 41,
         "w": 24,
         "h": 8
       },
@@ -1142,7 +1142,7 @@
       "type": "timeseries",
       "gridPos": {
         "x": 0,
-        "y": 45,
+        "y": 49,
         "w": 12,
         "h": 8
       },
@@ -1197,7 +1197,7 @@
       "type": "piechart",
       "gridPos": {
         "x": 12,
-        "y": 45,
+        "y": 49,
         "w": 6,
         "h": 8
       },
@@ -1245,7 +1245,7 @@
       "type": "timeseries",
       "gridPos": {
         "x": 18,
-        "y": 45,
+        "y": 49,
         "w": 6,
         "h": 8
       },
@@ -1300,7 +1300,7 @@
       "type": "timeseries",
       "gridPos": {
         "x": 0,
-        "y": 53,
+        "y": 57,
         "w": 12,
         "h": 8
       },
@@ -1384,7 +1384,7 @@
       "type": "timeseries",
       "gridPos": {
         "x": 12,
-        "y": 53,
+        "y": 57,
         "w": 12,
         "h": 8
       },

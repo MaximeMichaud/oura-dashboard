@@ -177,7 +177,12 @@ def pie_chart(labels, values, colors=None, title="", hole=0.4, height=None):
             textposition="inside",
         )
     )
-    return _apply_defaults(fig, title, height or 300)
+    _apply_defaults(fig, title, height or 300)
+    fig.update_layout(
+        margin=dict(t=40, b=80, l=20, r=20),
+        legend=dict(yanchor="top", y=-0.1, xanchor="center", x=0.5),
+    )
+    return fig
 
 
 # -- Horizontal bar (bargauge) --
@@ -221,6 +226,7 @@ def state_timeline(df, color_map, title="", height=None):
     fig.update_layout(
         yaxis_visible=False,
         showlegend=True,
+        legend_title_text="",
     )
     return _apply_defaults(fig, title, height or 180)
 

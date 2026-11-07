@@ -395,7 +395,7 @@
       "title": "Sleep Phases",
       "type": "piechart",
       "gridPos": {
-        "h": 8,
+        "h": 10,
         "w": 8,
         "x": 0,
         "y": 4
@@ -500,8 +500,8 @@
           "sort": "none"
         },
         "legend": {
-          "displayMode": "list",
-          "placement": "right",
+          "displayMode": "table",
+          "placement": "bottom",
           "values": [
             "value",
             "percent"
@@ -517,7 +517,7 @@
       "title": "Sleep Phases Stacked %",
       "type": "timeseries",
       "gridPos": {
-        "h": 8,
+        "h": 10,
         "w": 16,
         "x": 8,
         "y": 4
@@ -673,7 +673,7 @@
         "h": 8,
         "w": 24,
         "x": 0,
-        "y": 12
+        "y": 14
       },
       "datasource": {
         "type": "grafana-postgresql-datasource",
@@ -762,7 +762,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 20
+        "y": 22
       },
       "datasource": {
         "type": "grafana-postgresql-datasource",
@@ -861,7 +861,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 20
+        "y": 22
       },
       "datasource": {
         "type": "grafana-postgresql-datasource",
@@ -960,7 +960,7 @@
         "h": 8,
         "w": 8,
         "x": 0,
-        "y": 28
+        "y": 30
       },
       "datasource": {
         "type": "grafana-postgresql-datasource",
@@ -1096,7 +1096,7 @@
         "h": 8,
         "w": 8,
         "x": 8,
-        "y": 28
+        "y": 30
       },
       "datasource": {
         "type": "grafana-postgresql-datasource",
@@ -1190,7 +1190,7 @@
         "h": 8,
         "w": 8,
         "x": 16,
-        "y": 28
+        "y": 30
       },
       "datasource": {
         "type": "grafana-postgresql-datasource",
@@ -1294,7 +1294,7 @@
         "h": 6,
         "w": 24,
         "x": 0,
-        "y": 36
+        "y": 38
       },
       "datasource": {
         "type": "grafana-postgresql-datasource",
@@ -1393,7 +1393,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 42
+        "y": 44
       },
       "datasource": {
         "type": "grafana-postgresql-datasource",
@@ -1521,7 +1521,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 42
+        "y": 44
       },
       "datasource": {
         "type": "grafana-postgresql-datasource",
@@ -1605,7 +1605,7 @@
         "h": 4,
         "w": 6,
         "x": 0,
-        "y": 50
+        "y": 52
       },
       "datasource": {
         "type": "grafana-postgresql-datasource",
@@ -1653,7 +1653,7 @@
         "h": 4,
         "w": 6,
         "x": 6,
-        "y": 50
+        "y": 52
       },
       "datasource": {
         "type": "grafana-postgresql-datasource",
@@ -1701,7 +1701,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 50
+        "y": 52
       },
       "datasource": {
         "type": "grafana-postgresql-datasource",
