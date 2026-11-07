@@ -19,7 +19,7 @@
       "targets": [
         {
           "refId": "A",
-          "rawSql": "SELECT NULLIF(spo2_percentage_average, 0) as \"SpO2 %\" FROM daily_spo2 WHERE spo2_percentage_average > 0 AND day <= ($__timeTo()::timestamptz)::date ORDER BY day DESC LIMIT 1",
+          "rawSql": "SELECT NULLIF(spo2_percentage_average, 0) as \"SpO2 %\" FROM daily_spo2 WHERE spo2_percentage_average > 0 AND day <= ($__timeTo()::timestamptz AT TIME ZONE '$__timezone')::date ORDER BY day DESC LIMIT 1",
           "format": "table"
         }
       ],
@@ -58,7 +58,7 @@
       "targets": [
         {
           "refId": "A",
-          "rawSql": "SELECT breathing_disturbance_index FROM daily_spo2 WHERE day <= ($__timeTo()::timestamptz)::date ORDER BY day DESC LIMIT 1",
+          "rawSql": "SELECT breathing_disturbance_index FROM daily_spo2 WHERE day <= ($__timeTo()::timestamptz AT TIME ZONE '$__timezone')::date ORDER BY day DESC LIMIT 1",
           "format": "table"
         }
       ],
@@ -98,7 +98,7 @@
       "targets": [
         {
           "refId": "A",
-          "rawSql": "SELECT day as time, NULLIF(spo2_percentage_average, 0) as \"SpO2 %\" FROM daily_spo2 WHERE $__timeFilter(day) ORDER BY day",
+          "rawSql": "SELECT (day::timestamp AT TIME ZONE '$__timezone') AS time, NULLIF(spo2_percentage_average, 0) as \"SpO2 %\" FROM daily_spo2 WHERE day BETWEEN ($__timeFrom()::timestamptz AT TIME ZONE '$__timezone')::date AND ($__timeTo()::timestamptz AT TIME ZONE '$__timezone')::date ORDER BY day",
           "format": "time_series"
         }
       ],
@@ -141,7 +141,7 @@
       "targets": [
         {
           "refId": "A",
-          "rawSql": "SELECT CASE day_summary WHEN 'restored' THEN 1 WHEN 'normal' THEN 2 WHEN 'stressful' THEN 3 ELSE 0 END as stress_level FROM daily_stress WHERE day_summary IS NOT NULL AND day_summary <> '' AND day <= ($__timeTo()::timestamptz)::date ORDER BY day DESC LIMIT 1",
+          "rawSql": "SELECT CASE day_summary WHEN 'restored' THEN 1 WHEN 'normal' THEN 2 WHEN 'stressful' THEN 3 ELSE 0 END as stress_level FROM daily_stress WHERE day_summary IS NOT NULL AND day_summary <> '' AND day <= ($__timeTo()::timestamptz AT TIME ZONE '$__timezone')::date ORDER BY day DESC LIMIT 1",
           "format": "table"
         }
       ],
@@ -186,7 +186,7 @@
       "targets": [
         {
           "refId": "A",
-          "rawSql": "SELECT stress_high/60.0 as \"Stress (min)\" FROM daily_stress WHERE day <= ($__timeTo()::timestamptz)::date ORDER BY day DESC LIMIT 1",
+          "rawSql": "SELECT stress_high/60.0 as \"Stress (min)\" FROM daily_stress WHERE day <= ($__timeTo()::timestamptz AT TIME ZONE '$__timezone')::date ORDER BY day DESC LIMIT 1",
           "format": "table"
         }
       ],
@@ -224,7 +224,7 @@
       "targets": [
         {
           "refId": "A",
-          "rawSql": "SELECT stress_high/3600.0 as \"Stress (h)\", recovery_high/3600.0 as \"Recovery (h)\" FROM daily_stress ORDER BY day DESC LIMIT 1",
+          "rawSql": "SELECT stress_high/3600.0 as \"Stress (h)\", recovery_high/3600.0 as \"Recovery (h)\" FROM daily_stress WHERE day <= ($__timeTo()::timestamptz AT TIME ZONE '$__timezone')::date ORDER BY day DESC LIMIT 1",
           "format": "table"
         }
       ],
@@ -287,7 +287,7 @@
       "targets": [
         {
           "refId": "A",
-          "rawSql": "SELECT day as time, stress_high/3600.0 as \"Stress (h)\", recovery_high/3600.0 as \"Recovery (h)\" FROM daily_stress WHERE $__timeFilter(day) ORDER BY day",
+          "rawSql": "SELECT (day::timestamp AT TIME ZONE '$__timezone') AS time, stress_high/3600.0 as \"Stress (h)\", recovery_high/3600.0 as \"Recovery (h)\" FROM daily_stress WHERE day BETWEEN ($__timeFrom()::timestamptz AT TIME ZONE '$__timezone')::date AND ($__timeTo()::timestamptz AT TIME ZONE '$__timezone')::date ORDER BY day",
           "format": "time_series"
         }
       ],
@@ -353,7 +353,7 @@
       "targets": [
         {
           "refId": "A",
-          "rawSql": "SELECT CASE level WHEN 'limited' THEN 1 WHEN 'adequate' THEN 2 WHEN 'solid' THEN 3 WHEN 'strong' THEN 4 WHEN 'exceptional' THEN 5 ELSE 0 END as resilience_level FROM daily_resilience ORDER BY day DESC LIMIT 1",
+          "rawSql": "SELECT CASE level WHEN 'limited' THEN 1 WHEN 'adequate' THEN 2 WHEN 'solid' THEN 3 WHEN 'strong' THEN 4 WHEN 'exceptional' THEN 5 ELSE 0 END as resilience_level FROM daily_resilience WHERE day <= ($__timeTo()::timestamptz AT TIME ZONE '$__timezone')::date ORDER BY day DESC LIMIT 1",
           "format": "table"
         }
       ],
@@ -402,7 +402,7 @@
       "targets": [
         {
           "refId": "A",
-          "rawSql": "SELECT contributors_sleep_recovery as \"Sleep Recovery\", contributors_daytime_recovery as \"Daytime Recovery\", contributors_stress as \"Stress\" FROM daily_resilience ORDER BY day DESC LIMIT 1",
+          "rawSql": "SELECT contributors_sleep_recovery as \"Sleep Recovery\", contributors_daytime_recovery as \"Daytime Recovery\", contributors_stress as \"Stress\" FROM daily_resilience WHERE day <= ($__timeTo()::timestamptz AT TIME ZONE '$__timezone')::date ORDER BY day DESC LIMIT 1",
           "format": "table"
         }
       ],
@@ -445,7 +445,7 @@
       "targets": [
         {
           "refId": "A",
-          "rawSql": "SELECT day as time, level as \"Resilience\" FROM daily_resilience WHERE $__timeFilter(day) ORDER BY day",
+          "rawSql": "SELECT (day::timestamp AT TIME ZONE '$__timezone') AS time, level as \"Resilience\" FROM daily_resilience WHERE day BETWEEN ($__timeFrom()::timestamptz AT TIME ZONE '$__timezone')::date AND ($__timeTo()::timestamptz AT TIME ZONE '$__timezone')::date ORDER BY day",
           "format": "time_series"
         }
       ],
@@ -522,7 +522,7 @@
       "targets": [
         {
           "refId": "A",
-          "rawSql": "SELECT vascular_age FROM daily_cardiovascular_age ORDER BY day DESC LIMIT 1",
+          "rawSql": "SELECT vascular_age FROM daily_cardiovascular_age WHERE day <= ($__timeTo()::timestamptz AT TIME ZONE '$__timezone')::date ORDER BY day DESC LIMIT 1",
           "format": "table"
         }
       ],
@@ -564,7 +564,7 @@
       "targets": [
         {
           "refId": "A",
-          "rawSql": "SELECT day as time, vascular_age as \"Vascular Age\" FROM daily_cardiovascular_age WHERE $__timeFilter(day) ORDER BY day",
+          "rawSql": "SELECT (day::timestamp AT TIME ZONE '$__timezone') AS time, vascular_age as \"Vascular Age\" FROM daily_cardiovascular_age WHERE day BETWEEN ($__timeFrom()::timestamptz AT TIME ZONE '$__timezone')::date AND ($__timeTo()::timestamptz AT TIME ZONE '$__timezone')::date ORDER BY day",
           "format": "time_series"
         }
       ],
@@ -621,7 +621,7 @@
         {
           "refId": "A",
           "datasource": {"type": "grafana-postgresql-datasource", "uid": "oura-pg"},
-          "rawSql": "SELECT vo2_max FROM daily_vo2_max WHERE day <= ($__timeTo()::timestamptz)::date ORDER BY day DESC LIMIT 1",
+          "rawSql": "SELECT vo2_max FROM daily_vo2_max WHERE day <= ($__timeTo()::timestamptz AT TIME ZONE '$__timezone')::date ORDER BY day DESC LIMIT 1",
           "format": "table"
         }
       ]
@@ -645,7 +645,7 @@
         {
           "refId": "A",
           "datasource": {"type": "grafana-postgresql-datasource", "uid": "oura-pg"},
-          "rawSql": "SELECT day AS time, vo2_max FROM daily_vo2_max WHERE $__timeFilter(day) ORDER BY day",
+          "rawSql": "SELECT (day::timestamp AT TIME ZONE '$__timezone') AS time, vo2_max FROM daily_vo2_max WHERE day BETWEEN ($__timeFrom()::timestamptz AT TIME ZONE '$__timezone')::date AND ($__timeTo()::timestamptz AT TIME ZONE '$__timezone')::date ORDER BY day",
           "format": "time_series"
         }
       ]

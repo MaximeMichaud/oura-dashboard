@@ -532,7 +532,7 @@
             "type": "grafana-postgresql-datasource",
             "uid": "oura-pg"
           },
-          "rawSql": "SELECT day as time, deep_sleep/3600.0 as \"Deep\", light_sleep/3600.0 as \"Light\", rem_sleep/3600.0 as \"REM\", awake_time/3600.0 as \"Awake\" FROM (SELECT DISTINCT ON (day) day, deep_sleep, light_sleep, rem_sleep, awake_time FROM sleep WHERE type='long_sleep' AND $__timeFilter(day) ORDER BY day, total_sleep DESC) sub ORDER BY day",
+          "rawSql": "SELECT (day::timestamp AT TIME ZONE '$__timezone') AS time, deep_sleep/3600.0 as \"Deep\", light_sleep/3600.0 as \"Light\", rem_sleep/3600.0 as \"REM\", awake_time/3600.0 as \"Awake\" FROM (SELECT DISTINCT ON (day) day, deep_sleep, light_sleep, rem_sleep, awake_time FROM sleep WHERE type='long_sleep' AND day BETWEEN ($__timeFrom()::timestamptz AT TIME ZONE '$__timezone')::date AND ($__timeTo()::timestamptz AT TIME ZONE '$__timezone')::date ORDER BY day, total_sleep DESC) sub ORDER BY day",
           "format": "table",
           "refId": "A"
         }
@@ -972,7 +972,7 @@
             "type": "grafana-postgresql-datasource",
             "uid": "oura-pg"
           },
-          "rawSql": "SELECT day as time, average_hrv as \"HRV\", avg(average_hrv) OVER (ORDER BY day ROWS BETWEEN 6 PRECEDING AND CURRENT ROW) as \"7d Avg\" FROM (SELECT DISTINCT ON (day) day, average_hrv FROM sleep WHERE type='long_sleep' AND $__timeFilter(day) ORDER BY day, total_sleep DESC) sub ORDER BY day",
+          "rawSql": "WITH daily AS (\n  SELECT DISTINCT ON (day) day, average_hrv FROM sleep WHERE type='long_sleep' AND day >= ($__timeFrom()::timestamptz AT TIME ZONE '$__timezone')::date - 6 AND day <= ($__timeTo()::timestamptz AT TIME ZONE '$__timezone')::date ORDER BY day, total_sleep DESC\n), rolling AS (\n  SELECT day, average_hrv AS \"HRV\",\n    AVG(average_hrv) OVER (ORDER BY day::timestamp RANGE BETWEEN INTERVAL '6 days' PRECEDING AND CURRENT ROW) AS \"7d Avg\"\n  FROM daily\n)\nSELECT (day::timestamp AT TIME ZONE '$__timezone') AS time, \"HRV\", \"7d Avg\" FROM rolling WHERE day BETWEEN ($__timeFrom()::timestamptz AT TIME ZONE '$__timezone')::date AND ($__timeTo()::timestamptz AT TIME ZONE '$__timezone')::date ORDER BY day",
           "format": "table",
           "refId": "A"
         }
@@ -1108,7 +1108,7 @@
             "type": "grafana-postgresql-datasource",
             "uid": "oura-pg"
           },
-          "rawSql": "SELECT day as time, lowest_heart_rate as \"Lowest HR\" FROM (SELECT DISTINCT ON (day) day, lowest_heart_rate FROM sleep WHERE type='long_sleep' AND $__timeFilter(day) ORDER BY day, total_sleep DESC) sub ORDER BY day",
+          "rawSql": "SELECT (day::timestamp AT TIME ZONE '$__timezone') AS time, lowest_heart_rate as \"Lowest HR\" FROM (SELECT DISTINCT ON (day) day, lowest_heart_rate FROM sleep WHERE type='long_sleep' AND day BETWEEN ($__timeFrom()::timestamptz AT TIME ZONE '$__timezone')::date AND ($__timeTo()::timestamptz AT TIME ZONE '$__timezone')::date ORDER BY day, total_sleep DESC) sub ORDER BY day",
           "format": "time_series",
           "refId": "A"
         }
@@ -1202,7 +1202,7 @@
             "type": "grafana-postgresql-datasource",
             "uid": "oura-pg"
           },
-          "rawSql": "SELECT day as time, efficiency as \"Efficiency\" FROM (SELECT DISTINCT ON (day) day, efficiency FROM sleep WHERE type='long_sleep' AND $__timeFilter(day) ORDER BY day, total_sleep DESC) sub ORDER BY day",
+          "rawSql": "SELECT (day::timestamp AT TIME ZONE '$__timezone') AS time, efficiency as \"Efficiency\" FROM (SELECT DISTINCT ON (day) day, efficiency FROM sleep WHERE type='long_sleep' AND day BETWEEN ($__timeFrom()::timestamptz AT TIME ZONE '$__timezone')::date AND ($__timeTo()::timestamptz AT TIME ZONE '$__timezone')::date ORDER BY day, total_sleep DESC) sub ORDER BY day",
           "format": "time_series",
           "refId": "A"
         }
@@ -1306,7 +1306,7 @@
             "type": "grafana-postgresql-datasource",
             "uid": "oura-pg"
           },
-          "rawSql": "SELECT day::text as \"Date\", contributors_deep_sleep as \"Deep Sleep\", contributors_efficiency as \"Efficiency\", contributors_latency as \"Latency\", contributors_rem_sleep as \"REM Sleep\", contributors_restfulness as \"Restfulness\", contributors_timing as \"Timing\", contributors_total_sleep as \"Total Sleep\" FROM daily_sleep WHERE $__timeFilter(day) ORDER BY day DESC",
+          "rawSql": "SELECT day::text as \"Date\", contributors_deep_sleep as \"Deep Sleep\", contributors_efficiency as \"Efficiency\", contributors_latency as \"Latency\", contributors_rem_sleep as \"REM Sleep\", contributors_restfulness as \"Restfulness\", contributors_timing as \"Timing\", contributors_total_sleep as \"Total Sleep\" FROM daily_sleep WHERE day BETWEEN ($__timeFrom()::timestamptz AT TIME ZONE '$__timezone')::date AND ($__timeTo()::timestamptz AT TIME ZONE '$__timezone')::date ORDER BY day DESC",
           "format": "table",
           "refId": "A"
         }
@@ -1405,7 +1405,7 @@
             "type": "grafana-postgresql-datasource",
             "uid": "oura-pg"
           },
-          "rawSql": "SELECT day as time, latency/60.0 as \"Latency (min)\", avg(latency/60.0) OVER (ORDER BY day ROWS BETWEEN 6 PRECEDING AND CURRENT ROW) as \"7d Avg\" FROM (SELECT DISTINCT ON (day) day, latency FROM sleep WHERE type='long_sleep' AND $__timeFilter(day) ORDER BY day, total_sleep DESC) sub ORDER BY day",
+          "rawSql": "WITH daily AS (\n  SELECT DISTINCT ON (day) day, latency FROM sleep WHERE type='long_sleep' AND day >= ($__timeFrom()::timestamptz AT TIME ZONE '$__timezone')::date - 6 AND day <= ($__timeTo()::timestamptz AT TIME ZONE '$__timezone')::date ORDER BY day, total_sleep DESC\n), rolling AS (\n  SELECT day, latency/60.0 AS \"Latency (min)\",\n    AVG(latency/60.0) OVER (ORDER BY day::timestamp RANGE BETWEEN INTERVAL '6 days' PRECEDING AND CURRENT ROW) AS \"7d Avg\"\n  FROM daily\n)\nSELECT (day::timestamp AT TIME ZONE '$__timezone') AS time, \"Latency (min)\", \"7d Avg\" FROM rolling WHERE day BETWEEN ($__timeFrom()::timestamptz AT TIME ZONE '$__timezone')::date AND ($__timeTo()::timestamptz AT TIME ZONE '$__timezone')::date ORDER BY day",
           "format": "table",
           "refId": "A"
         }
@@ -1533,7 +1533,7 @@
             "type": "grafana-postgresql-datasource",
             "uid": "oura-pg"
           },
-          "rawSql": "SELECT day as time, average_breath as \"Breaths/min\" FROM (SELECT DISTINCT ON (day) day, average_breath FROM sleep WHERE type='long_sleep' AND $__timeFilter(day) ORDER BY day, total_sleep DESC) sub ORDER BY day",
+          "rawSql": "SELECT (day::timestamp AT TIME ZONE '$__timezone') AS time, average_breath as \"Breaths/min\" FROM (SELECT DISTINCT ON (day) day, average_breath FROM sleep WHERE type='long_sleep' AND day BETWEEN ($__timeFrom()::timestamptz AT TIME ZONE '$__timezone')::date AND ($__timeTo()::timestamptz AT TIME ZONE '$__timezone')::date ORDER BY day, total_sleep DESC) sub ORDER BY day",
           "format": "time_series",
           "refId": "A"
         }
@@ -1617,7 +1617,7 @@
             "type": "grafana-postgresql-datasource",
             "uid": "oura-pg"
           },
-          "rawSql": "SELECT CASE WHEN optimal_bedtime_start IS NOT NULL THEN to_char((timestamp '2000-01-02 00:00:00' + (optimal_bedtime_start * interval '1 second'))::time, 'HH24:MI') || ' - ' || to_char((timestamp '2000-01-02 00:00:00' + (optimal_bedtime_end * interval '1 second'))::time, 'HH24:MI') ELSE initcap(replace(recommendation, '_', ' ')) END as \"Bedtime\" FROM sleep_time WHERE day <= ($__timeTo()::timestamptz)::date ORDER BY day DESC LIMIT 1",
+          "rawSql": "SELECT CASE WHEN optimal_bedtime_start IS NOT NULL THEN to_char((timestamp '2000-01-02 00:00:00' + (optimal_bedtime_start * interval '1 second'))::time, 'HH24:MI') || ' - ' || to_char((timestamp '2000-01-02 00:00:00' + (optimal_bedtime_end * interval '1 second'))::time, 'HH24:MI') ELSE initcap(replace(recommendation, '_', ' ')) END as \"Bedtime\" FROM sleep_time WHERE day <= ($__timeTo()::timestamptz AT TIME ZONE '$__timezone')::date ORDER BY day DESC LIMIT 1",
           "format": "table",
           "refId": "A"
         }
@@ -1665,7 +1665,7 @@
             "type": "grafana-postgresql-datasource",
             "uid": "oura-pg"
           },
-          "rawSql": "SELECT initcap(replace(recommendation, '_', ' ')) as \"Recommendation\" FROM sleep_time WHERE day <= ($__timeTo()::timestamptz)::date ORDER BY day DESC LIMIT 1",
+          "rawSql": "SELECT initcap(replace(recommendation, '_', ' ')) as \"Recommendation\" FROM sleep_time WHERE day <= ($__timeTo()::timestamptz AT TIME ZONE '$__timezone')::date ORDER BY day DESC LIMIT 1",
           "format": "table",
           "refId": "A"
         }
@@ -1713,7 +1713,7 @@
             "type": "grafana-postgresql-datasource",
             "uid": "oura-pg"
           },
-          "rawSql": "SELECT day as time, count(*) as \"Naps\" FROM sleep WHERE type IN ('late_nap', 'rest') AND $__timeFilter(day) GROUP BY day ORDER BY day",
+          "rawSql": "SELECT (day::timestamp AT TIME ZONE '$__timezone') AS time, count(*) as \"Naps\" FROM sleep WHERE type IN ('late_nap', 'rest') AND day BETWEEN ($__timeFrom()::timestamptz AT TIME ZONE '$__timezone')::date AND ($__timeTo()::timestamptz AT TIME ZONE '$__timezone')::date GROUP BY day ORDER BY day",
           "format": "time_series",
           "refId": "A"
         }
@@ -1758,7 +1758,7 @@
           "type": "grafana-postgresql-datasource",
           "uid": "oura-pg"
         },
-        "query": "SELECT DISTINCT day::text FROM sleep WHERE type='long_sleep' AND day >= '${__from:date:YYYY-MM-DD}'::date AND day <= '${__to:date:YYYY-MM-DD}'::date ORDER BY 1 DESC",
+        "query": "SELECT DISTINCT day::text FROM sleep WHERE type='long_sleep' AND day >= (to_timestamp(${__from} / 1000.0) AT TIME ZONE '$__timezone')::date AND day <= (to_timestamp(${__to} / 1000.0) AT TIME ZONE '$__timezone')::date ORDER BY 1 DESC",
         "refresh": 2,
         "sort": 0,
         "includeAll": false,
@@ -1772,7 +1772,7 @@
           "type": "grafana-postgresql-datasource",
           "uid": "oura-pg"
         },
-        "query": "SELECT ('${__to:date:YYYY-MM-DD}'::date - '$night'::date) || 'd'",
+        "query": "SELECT ((to_timestamp(${__to} / 1000.0) AT TIME ZONE '$__timezone')::date - '$night'::date) || 'd'",
         "refresh": 2,
         "sort": 0,
         "includeAll": false,

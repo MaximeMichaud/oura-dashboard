@@ -37,7 +37,7 @@
             "type": "grafana-postgresql-datasource",
             "uid": "oura-pg"
           },
-          "rawSql": "SELECT active_calories FROM daily_activity WHERE day <= ($__timeTo()::timestamptz)::date ORDER BY day DESC LIMIT 1",
+          "rawSql": "SELECT active_calories FROM daily_activity WHERE day <= ($__timeTo()::timestamptz AT TIME ZONE '$__timezone')::date ORDER BY day DESC LIMIT 1",
           "format": "table"
         }
       ],
@@ -95,7 +95,7 @@
             "type": "grafana-postgresql-datasource",
             "uid": "oura-pg"
           },
-          "rawSql": "SELECT steps FROM daily_activity WHERE day <= ($__timeTo()::timestamptz)::date ORDER BY day DESC LIMIT 1",
+          "rawSql": "SELECT steps FROM daily_activity WHERE day <= ($__timeTo()::timestamptz AT TIME ZONE '$__timezone')::date ORDER BY day DESC LIMIT 1",
           "format": "table"
         }
       ],
@@ -153,7 +153,7 @@
             "type": "grafana-postgresql-datasource",
             "uid": "oura-pg"
           },
-          "rawSql": "SELECT total_calories FROM daily_activity WHERE day <= ($__timeTo()::timestamptz)::date ORDER BY day DESC LIMIT 1",
+          "rawSql": "SELECT total_calories FROM daily_activity WHERE day <= ($__timeTo()::timestamptz AT TIME ZONE '$__timezone')::date ORDER BY day DESC LIMIT 1",
           "format": "table"
         }
       ],
@@ -211,7 +211,7 @@
             "type": "grafana-postgresql-datasource",
             "uid": "oura-pg"
           },
-          "rawSql": "SELECT round(equivalent_walking_distance/1000.0, 1) as \"km\" FROM daily_activity ORDER BY day DESC LIMIT 1",
+          "rawSql": "SELECT round(equivalent_walking_distance/1000.0, 1) as \"km\" FROM daily_activity WHERE day <= ($__timeTo()::timestamptz AT TIME ZONE '$__timezone')::date ORDER BY day DESC LIMIT 1",
           "format": "table"
         }
       ],
@@ -271,7 +271,7 @@
             "type": "grafana-postgresql-datasource",
             "uid": "oura-pg"
           },
-          "rawSql": "SELECT day as time, steps as \"Steps\" FROM daily_activity WHERE $__timeFilter(day) ORDER BY day",
+          "rawSql": "SELECT (day::timestamp AT TIME ZONE '$__timezone') AS time, steps as \"Steps\" FROM daily_activity WHERE day BETWEEN ($__timeFrom()::timestamptz AT TIME ZONE '$__timezone')::date AND ($__timeTo()::timestamptz AT TIME ZONE '$__timezone')::date ORDER BY day",
           "format": "time_series"
         }
       ],
@@ -338,7 +338,7 @@
             "type": "grafana-postgresql-datasource",
             "uid": "oura-pg"
           },
-          "rawSql": "SELECT \n  high_activity_time/3600.0 as \"High\",\n  medium_activity_time/3600.0 as \"Medium\", \n  low_activity_time/3600.0 as \"Low\",\n  sedentary_time/3600.0 as \"Sedentary\",\n  resting_time/3600.0 as \"Rest\"\nFROM daily_activity ORDER BY day DESC LIMIT 1",
+          "rawSql": "SELECT \n  high_activity_time/3600.0 as \"High\",\n  medium_activity_time/3600.0 as \"Medium\", \n  low_activity_time/3600.0 as \"Low\",\n  sedentary_time/3600.0 as \"Sedentary\",\n  resting_time/3600.0 as \"Rest\"\nFROM daily_activity WHERE day <= ($__timeTo()::timestamptz AT TIME ZONE '$__timezone')::date ORDER BY day DESC LIMIT 1",
           "format": "table"
         }
       ],
@@ -480,7 +480,7 @@
             "type": "grafana-postgresql-datasource",
             "uid": "oura-pg"
           },
-          "rawSql": "SELECT day as time, average_met_minutes as \"Avg MET\" FROM daily_activity WHERE $__timeFilter(day) ORDER BY day",
+          "rawSql": "SELECT (day::timestamp AT TIME ZONE '$__timezone') AS time, average_met_minutes as \"Avg MET\" FROM daily_activity WHERE day BETWEEN ($__timeFrom()::timestamptz AT TIME ZONE '$__timezone')::date AND ($__timeTo()::timestamptz AT TIME ZONE '$__timezone')::date ORDER BY day",
           "format": "time_series"
         }
       ],
@@ -549,7 +549,7 @@
             "type": "grafana-postgresql-datasource",
             "uid": "oura-pg"
           },
-          "rawSql": "SELECT \n  high_activity_time/3600.0 as \"High Activity (h)\",\n  medium_activity_time/3600.0 as \"Medium Activity (h)\",\n  low_activity_time/3600.0 as \"Low Activity (h)\",\n  sedentary_time/3600.0 as \"Sedentary (h)\",\n  resting_time/3600.0 as \"Rest (h)\"\nFROM daily_activity ORDER BY day DESC LIMIT 1",
+          "rawSql": "SELECT \n  high_activity_time/3600.0 as \"High Activity (h)\",\n  medium_activity_time/3600.0 as \"Medium Activity (h)\",\n  low_activity_time/3600.0 as \"Low Activity (h)\",\n  sedentary_time/3600.0 as \"Sedentary (h)\",\n  resting_time/3600.0 as \"Rest (h)\"\nFROM daily_activity WHERE day <= ($__timeTo()::timestamptz AT TIME ZONE '$__timezone')::date ORDER BY day DESC LIMIT 1",
           "format": "table"
         }
       ],
@@ -611,7 +611,7 @@
             "type": "grafana-postgresql-datasource",
             "uid": "oura-pg"
           },
-          "rawSql": "SELECT day as time, active_calories as \"Active Cal\", steps as \"Steps\" FROM daily_activity WHERE $__timeFilter(day) ORDER BY day",
+          "rawSql": "SELECT (day::timestamp AT TIME ZONE '$__timezone') AS time, active_calories as \"Active Cal\", steps as \"Steps\" FROM daily_activity WHERE day BETWEEN ($__timeFrom()::timestamptz AT TIME ZONE '$__timezone')::date AND ($__timeTo()::timestamptz AT TIME ZONE '$__timezone')::date ORDER BY day",
           "format": "time_series"
         }
       ],
@@ -723,7 +723,7 @@
             "type": "grafana-postgresql-datasource",
             "uid": "oura-pg"
           },
-          "rawSql": "SELECT day as time, total_calories as \"Total Calories\", active_calories as \"Active Calories\" FROM daily_activity WHERE $__timeFilter(day) ORDER BY day",
+          "rawSql": "SELECT (day::timestamp AT TIME ZONE '$__timezone') AS time, total_calories as \"Total Calories\", active_calories as \"Active Calories\" FROM daily_activity WHERE day BETWEEN ($__timeFrom()::timestamptz AT TIME ZONE '$__timezone')::date AND ($__timeTo()::timestamptz AT TIME ZONE '$__timezone')::date ORDER BY day",
           "format": "time_series"
         }
       ],
@@ -819,7 +819,7 @@
             "type": "grafana-postgresql-datasource",
             "uid": "oura-pg"
           },
-          "rawSql": "SELECT day as time, equivalent_walking_distance/1000.0 as \"Distance (km)\" FROM daily_activity WHERE $__timeFilter(day) ORDER BY day",
+          "rawSql": "SELECT (day::timestamp AT TIME ZONE '$__timezone') AS time, equivalent_walking_distance/1000.0 as \"Distance (km)\" FROM daily_activity WHERE day BETWEEN ($__timeFrom()::timestamptz AT TIME ZONE '$__timezone')::date AND ($__timeTo()::timestamptz AT TIME ZONE '$__timezone')::date ORDER BY day",
           "format": "time_series"
         }
       ],
@@ -888,7 +888,7 @@
             "type": "grafana-postgresql-datasource",
             "uid": "oura-pg"
           },
-          "rawSql": "SELECT contributors_meet_daily_targets as \"Daily Targets\", contributors_move_every_hour as \"Move Every Hour\", contributors_recovery_time as \"Recovery Time\", contributors_stay_active as \"Stay Active\", contributors_training_frequency as \"Training Freq\", contributors_training_volume as \"Training Volume\" FROM daily_activity ORDER BY day DESC LIMIT 1",
+          "rawSql": "SELECT contributors_meet_daily_targets as \"Daily Targets\", contributors_move_every_hour as \"Move Every Hour\", contributors_recovery_time as \"Recovery Time\", contributors_stay_active as \"Stay Active\", contributors_training_frequency as \"Training Freq\", contributors_training_volume as \"Training Volume\" FROM daily_activity WHERE day <= ($__timeTo()::timestamptz AT TIME ZONE '$__timezone')::date ORDER BY day DESC LIMIT 1",
           "format": "table"
         }
       ],
@@ -958,7 +958,7 @@
             "type": "grafana-postgresql-datasource",
             "uid": "oura-pg"
           },
-          "rawSql": "SELECT score FROM daily_activity WHERE day <= ($__timeTo()::timestamptz)::date AND score IS NOT NULL AND score <> 0 ORDER BY day DESC LIMIT 1",
+          "rawSql": "SELECT score FROM daily_activity WHERE day <= ($__timeTo()::timestamptz AT TIME ZONE '$__timezone')::date AND score IS NOT NULL AND score <> 0 ORDER BY day DESC LIMIT 1",
           "format": "table"
         }
       ],
@@ -1025,7 +1025,7 @@
             "type": "grafana-postgresql-datasource",
             "uid": "oura-pg"
           },
-          "rawSql": "SELECT day as time, NULLIF(score, 0) as \"Activity Score\" FROM daily_activity WHERE $__timeFilter(day) ORDER BY day",
+          "rawSql": "SELECT (day::timestamp AT TIME ZONE '$__timezone') AS time, NULLIF(score, 0) as \"Activity Score\" FROM daily_activity WHERE day BETWEEN ($__timeFrom()::timestamptz AT TIME ZONE '$__timezone')::date AND ($__timeTo()::timestamptz AT TIME ZONE '$__timezone')::date ORDER BY day",
           "format": "time_series"
         }
       ],
@@ -1096,7 +1096,7 @@
             "type": "grafana-postgresql-datasource",
             "uid": "oura-pg"
           },
-          "rawSql": "SELECT day::text as \"Date\", initcap(replace(activity, '_', ' ')) as \"Activity\", initcap(intensity) as \"Intensity\", round(calories::numeric) as \"Calories\", round(extract(epoch from (end_datetime - start_datetime))/60.0) as \"Duration (min)\", to_char(start_datetime, 'HH24:MI') as \"Start\", to_char(end_datetime, 'HH24:MI') as \"End\", initcap(source) as \"Source\" FROM workout WHERE $__timeFilter(day) ORDER BY day DESC, start_datetime DESC",
+          "rawSql": "SELECT day::text as \"Date\", initcap(replace(activity, '_', ' ')) as \"Activity\", initcap(intensity) as \"Intensity\", round(calories::numeric) as \"Calories\", round(extract(epoch from (end_datetime - start_datetime))/60.0) as \"Duration (min)\", to_char(start_datetime, 'HH24:MI') as \"Start\", to_char(end_datetime, 'HH24:MI') as \"End\", initcap(source) as \"Source\" FROM workout WHERE day BETWEEN ($__timeFrom()::timestamptz AT TIME ZONE '$__timezone')::date AND ($__timeTo()::timestamptz AT TIME ZONE '$__timezone')::date ORDER BY day DESC, start_datetime DESC",
           "format": "table"
         }
       ],
@@ -1157,7 +1157,7 @@
             "type": "grafana-postgresql-datasource",
             "uid": "oura-pg"
           },
-          "rawSql": "SELECT day as time, sum(calories)::integer as \"Workout Calories\" FROM workout WHERE $__timeFilter(day) GROUP BY day ORDER BY day",
+          "rawSql": "SELECT (day::timestamp AT TIME ZONE '$__timezone') AS time, sum(calories)::integer as \"Workout Calories\" FROM workout WHERE day BETWEEN ($__timeFrom()::timestamptz AT TIME ZONE '$__timezone')::date AND ($__timeTo()::timestamptz AT TIME ZONE '$__timezone')::date GROUP BY day ORDER BY day",
           "format": "time_series"
         }
       ],
@@ -1212,7 +1212,7 @@
             "type": "grafana-postgresql-datasource",
             "uid": "oura-pg"
           },
-          "rawSql": "SELECT initcap(replace(activity, '_', ' ')) as \"Activity\", count(*) as \"Count\" FROM workout WHERE $__timeFilter(day) GROUP BY activity ORDER BY count(*) DESC",
+          "rawSql": "SELECT initcap(replace(activity, '_', ' ')) as \"Activity\", count(*) as \"Count\" FROM workout WHERE day BETWEEN ($__timeFrom()::timestamptz AT TIME ZONE '$__timezone')::date AND ($__timeTo()::timestamptz AT TIME ZONE '$__timezone')::date GROUP BY activity ORDER BY count(*) DESC",
           "format": "table"
         }
       ],
@@ -1260,7 +1260,7 @@
             "type": "grafana-postgresql-datasource",
             "uid": "oura-pg"
           },
-          "rawSql": "SELECT day as time, sum(extract(epoch from (end_datetime - start_datetime))/60.0)::integer as \"Duration\" FROM workout WHERE $__timeFilter(day) GROUP BY day ORDER BY day",
+          "rawSql": "SELECT (day::timestamp AT TIME ZONE '$__timezone') AS time, sum(extract(epoch from (end_datetime - start_datetime))/60.0)::integer as \"Duration\" FROM workout WHERE day BETWEEN ($__timeFrom()::timestamptz AT TIME ZONE '$__timezone')::date AND ($__timeTo()::timestamptz AT TIME ZONE '$__timezone')::date GROUP BY day ORDER BY day",
           "format": "time_series"
         }
       ],
@@ -1315,7 +1315,7 @@
             "type": "grafana-postgresql-datasource",
             "uid": "oura-pg"
           },
-          "rawSql": "SELECT day AS time, active_calories AS \"Active Calories\", target_calories AS \"Target\" FROM daily_activity WHERE $__timeFilter(day) ORDER BY day",
+          "rawSql": "SELECT (day::timestamp AT TIME ZONE '$__timezone') AS time, active_calories AS \"Active Calories\", target_calories AS \"Target\" FROM daily_activity WHERE day BETWEEN ($__timeFrom()::timestamptz AT TIME ZONE '$__timezone')::date AND ($__timeTo()::timestamptz AT TIME ZONE '$__timezone')::date ORDER BY day",
           "format": "time_series"
         }
       ],
@@ -1399,7 +1399,7 @@
             "type": "grafana-postgresql-datasource",
             "uid": "oura-pg"
           },
-          "rawSql": "SELECT day AS time, steps AS \"Steps\", equivalent_walking_distance AS \"Distance (m)\", target_meters AS \"Target (m)\" FROM daily_activity WHERE $__timeFilter(day) ORDER BY day",
+          "rawSql": "SELECT (day::timestamp AT TIME ZONE '$__timezone') AS time, steps AS \"Steps\", equivalent_walking_distance AS \"Distance (m)\", target_meters AS \"Target (m)\" FROM daily_activity WHERE day BETWEEN ($__timeFrom()::timestamptz AT TIME ZONE '$__timezone')::date AND ($__timeTo()::timestamptz AT TIME ZONE '$__timezone')::date ORDER BY day",
           "format": "time_series"
         }
       ],

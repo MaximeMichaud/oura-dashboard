@@ -24,7 +24,7 @@
       "targets": [
         {
           "datasource": { "type": "grafana-postgresql-datasource", "uid": "oura-pg" },
-          "rawSql": "SELECT score FROM daily_sleep WHERE day <= ($__timeTo()::timestamptz)::date ORDER BY day DESC LIMIT 1",
+          "rawSql": "SELECT score FROM daily_sleep WHERE day <= ($__timeTo()::timestamptz AT TIME ZONE '$__timezone')::date ORDER BY day DESC LIMIT 1",
           "format": "table",
           "refId": "A"
         }
@@ -70,7 +70,7 @@
       "targets": [
         {
           "datasource": { "type": "grafana-postgresql-datasource", "uid": "oura-pg" },
-          "rawSql": "SELECT score FROM daily_readiness WHERE day <= ($__timeTo()::timestamptz)::date ORDER BY day DESC LIMIT 1",
+          "rawSql": "SELECT score FROM daily_readiness WHERE day <= ($__timeTo()::timestamptz AT TIME ZONE '$__timezone')::date ORDER BY day DESC LIMIT 1",
           "format": "table",
           "refId": "A"
         }
@@ -116,7 +116,7 @@
       "targets": [
         {
           "datasource": { "type": "grafana-postgresql-datasource", "uid": "oura-pg" },
-          "rawSql": "SELECT active_calories FROM daily_activity WHERE day <= ($__timeTo()::timestamptz)::date ORDER BY day DESC LIMIT 1",
+          "rawSql": "SELECT active_calories FROM daily_activity WHERE day <= ($__timeTo()::timestamptz AT TIME ZONE '$__timezone')::date ORDER BY day DESC LIMIT 1",
           "format": "table",
           "refId": "A"
         }
@@ -161,7 +161,7 @@
       "targets": [
         {
           "datasource": { "type": "grafana-postgresql-datasource", "uid": "oura-pg" },
-          "rawSql": "SELECT steps FROM daily_activity WHERE day <= ($__timeTo()::timestamptz)::date ORDER BY day DESC LIMIT 1",
+          "rawSql": "SELECT steps FROM daily_activity WHERE day <= ($__timeTo()::timestamptz AT TIME ZONE '$__timezone')::date ORDER BY day DESC LIMIT 1",
           "format": "table",
           "refId": "A"
         }
@@ -206,7 +206,7 @@
       "targets": [
         {
           "datasource": { "type": "grafana-postgresql-datasource", "uid": "oura-pg" },
-          "rawSql": "SELECT CASE day_summary WHEN 'restored' THEN 1 WHEN 'normal' THEN 2 WHEN 'stressful' THEN 3 ELSE 0 END as stress_level FROM daily_stress WHERE day_summary IS NOT NULL AND day_summary <> '' AND day <= ($__timeTo()::timestamptz)::date ORDER BY day DESC LIMIT 1",
+          "rawSql": "SELECT CASE day_summary WHEN 'restored' THEN 1 WHEN 'normal' THEN 2 WHEN 'stressful' THEN 3 ELSE 0 END as stress_level FROM daily_stress WHERE day_summary IS NOT NULL AND day_summary <> '' AND day <= ($__timeTo()::timestamptz AT TIME ZONE '$__timezone')::date ORDER BY day DESC LIMIT 1",
           "format": "table",
           "refId": "A"
         }
@@ -255,7 +255,7 @@
       "targets": [
         {
           "datasource": { "type": "grafana-postgresql-datasource", "uid": "oura-pg" },
-          "rawSql": "SELECT CASE level WHEN 'limited' THEN 1 WHEN 'adequate' THEN 2 WHEN 'solid' THEN 3 WHEN 'strong' THEN 4 WHEN 'exceptional' THEN 5 ELSE 0 END as resilience_level FROM daily_resilience WHERE day <= ($__timeTo()::timestamptz)::date ORDER BY day DESC LIMIT 1",
+          "rawSql": "SELECT CASE level WHEN 'limited' THEN 1 WHEN 'adequate' THEN 2 WHEN 'solid' THEN 3 WHEN 'strong' THEN 4 WHEN 'exceptional' THEN 5 ELSE 0 END as resilience_level FROM daily_resilience WHERE day <= ($__timeTo()::timestamptz AT TIME ZONE '$__timezone')::date ORDER BY day DESC LIMIT 1",
           "format": "table",
           "refId": "A"
         }
@@ -308,19 +308,19 @@
       "targets": [
         {
           "datasource": { "type": "grafana-postgresql-datasource", "uid": "oura-pg" },
-          "rawSql": "SELECT day as time, score as \"Sleep\" FROM daily_sleep WHERE $__timeFilter(day) ORDER BY day",
+          "rawSql": "SELECT (day::timestamp AT TIME ZONE '$__timezone') AS time, score as \"Sleep\" FROM daily_sleep WHERE day BETWEEN ($__timeFrom()::timestamptz AT TIME ZONE '$__timezone')::date AND ($__timeTo()::timestamptz AT TIME ZONE '$__timezone')::date ORDER BY day",
           "format": "time_series",
           "refId": "A"
         },
         {
           "datasource": { "type": "grafana-postgresql-datasource", "uid": "oura-pg" },
-          "rawSql": "SELECT day as time, score as \"Readiness\" FROM daily_readiness WHERE $__timeFilter(day) ORDER BY day",
+          "rawSql": "SELECT (day::timestamp AT TIME ZONE '$__timezone') AS time, score as \"Readiness\" FROM daily_readiness WHERE day BETWEEN ($__timeFrom()::timestamptz AT TIME ZONE '$__timezone')::date AND ($__timeTo()::timestamptz AT TIME ZONE '$__timezone')::date ORDER BY day",
           "format": "time_series",
           "refId": "B"
         },
         {
           "datasource": { "type": "grafana-postgresql-datasource", "uid": "oura-pg" },
-          "rawSql": "SELECT day as time, steps as \"Steps\" FROM daily_activity WHERE $__timeFilter(day) ORDER BY day",
+          "rawSql": "SELECT (day::timestamp AT TIME ZONE '$__timezone') AS time, steps as \"Steps\" FROM daily_activity WHERE day BETWEEN ($__timeFrom()::timestamptz AT TIME ZONE '$__timezone')::date AND ($__timeTo()::timestamptz AT TIME ZONE '$__timezone')::date ORDER BY day",
           "format": "time_series",
           "refId": "C"
         }
@@ -411,25 +411,25 @@
       "targets": [
         {
           "datasource": { "type": "grafana-postgresql-datasource", "uid": "oura-pg" },
-          "rawSql": "SELECT day as time, deep_sleep / 3600.0 as \"Deep Sleep\" FROM (SELECT DISTINCT ON (day) day, deep_sleep FROM sleep WHERE type = 'long_sleep' AND $__timeFilter(day) ORDER BY day, total_sleep DESC) sub ORDER BY day",
+          "rawSql": "SELECT (day::timestamp AT TIME ZONE '$__timezone') AS time, deep_sleep / 3600.0 as \"Deep Sleep\" FROM (SELECT DISTINCT ON (day) day, deep_sleep FROM sleep WHERE type = 'long_sleep' AND day BETWEEN ($__timeFrom()::timestamptz AT TIME ZONE '$__timezone')::date AND ($__timeTo()::timestamptz AT TIME ZONE '$__timezone')::date ORDER BY day, total_sleep DESC) sub ORDER BY day",
           "format": "time_series",
           "refId": "A"
         },
         {
           "datasource": { "type": "grafana-postgresql-datasource", "uid": "oura-pg" },
-          "rawSql": "SELECT day as time, light_sleep / 3600.0 as \"Light Sleep\" FROM (SELECT DISTINCT ON (day) day, light_sleep FROM sleep WHERE type = 'long_sleep' AND $__timeFilter(day) ORDER BY day, total_sleep DESC) sub ORDER BY day",
+          "rawSql": "SELECT (day::timestamp AT TIME ZONE '$__timezone') AS time, light_sleep / 3600.0 as \"Light Sleep\" FROM (SELECT DISTINCT ON (day) day, light_sleep FROM sleep WHERE type = 'long_sleep' AND day BETWEEN ($__timeFrom()::timestamptz AT TIME ZONE '$__timezone')::date AND ($__timeTo()::timestamptz AT TIME ZONE '$__timezone')::date ORDER BY day, total_sleep DESC) sub ORDER BY day",
           "format": "time_series",
           "refId": "B"
         },
         {
           "datasource": { "type": "grafana-postgresql-datasource", "uid": "oura-pg" },
-          "rawSql": "SELECT day as time, rem_sleep / 3600.0 as \"REM Sleep\" FROM (SELECT DISTINCT ON (day) day, rem_sleep FROM sleep WHERE type = 'long_sleep' AND $__timeFilter(day) ORDER BY day, total_sleep DESC) sub ORDER BY day",
+          "rawSql": "SELECT (day::timestamp AT TIME ZONE '$__timezone') AS time, rem_sleep / 3600.0 as \"REM Sleep\" FROM (SELECT DISTINCT ON (day) day, rem_sleep FROM sleep WHERE type = 'long_sleep' AND day BETWEEN ($__timeFrom()::timestamptz AT TIME ZONE '$__timezone')::date AND ($__timeTo()::timestamptz AT TIME ZONE '$__timezone')::date ORDER BY day, total_sleep DESC) sub ORDER BY day",
           "format": "time_series",
           "refId": "C"
         },
         {
           "datasource": { "type": "grafana-postgresql-datasource", "uid": "oura-pg" },
-          "rawSql": "SELECT day as time, awake_time / 3600.0 as \"Awake\" FROM (SELECT DISTINCT ON (day) day, awake_time FROM sleep WHERE type = 'long_sleep' AND $__timeFilter(day) ORDER BY day, total_sleep DESC) sub ORDER BY day",
+          "rawSql": "SELECT (day::timestamp AT TIME ZONE '$__timezone') AS time, awake_time / 3600.0 as \"Awake\" FROM (SELECT DISTINCT ON (day) day, awake_time FROM sleep WHERE type = 'long_sleep' AND day BETWEEN ($__timeFrom()::timestamptz AT TIME ZONE '$__timezone')::date AND ($__timeTo()::timestamptz AT TIME ZONE '$__timezone')::date ORDER BY day, total_sleep DESC) sub ORDER BY day",
           "format": "time_series",
           "refId": "D"
         }
@@ -521,7 +521,7 @@
       "targets": [
         {
           "datasource": { "type": "grafana-postgresql-datasource", "uid": "oura-pg" },
-          "rawSql": "SELECT contributors_deep_sleep as \"Deep Sleep\", contributors_efficiency as \"Efficiency\", contributors_latency as \"Latency\", contributors_rem_sleep as \"REM Sleep\", contributors_restfulness as \"Restfulness\", contributors_timing as \"Timing\", contributors_total_sleep as \"Total Sleep\" FROM daily_sleep ORDER BY day DESC LIMIT 1",
+          "rawSql": "SELECT contributors_deep_sleep as \"Deep Sleep\", contributors_efficiency as \"Efficiency\", contributors_latency as \"Latency\", contributors_rem_sleep as \"REM Sleep\", contributors_restfulness as \"Restfulness\", contributors_timing as \"Timing\", contributors_total_sleep as \"Total Sleep\" FROM daily_sleep WHERE day <= ($__timeTo()::timestamptz AT TIME ZONE '$__timezone')::date ORDER BY day DESC LIMIT 1",
           "format": "table",
           "refId": "A"
         }
@@ -572,7 +572,7 @@
       "targets": [
         {
           "datasource": { "type": "grafana-postgresql-datasource", "uid": "oura-pg" },
-          "rawSql": "SELECT day as time, steps as \"Steps\" FROM daily_activity WHERE $__timeFilter(day) ORDER BY day",
+          "rawSql": "SELECT (day::timestamp AT TIME ZONE '$__timezone') AS time, steps as \"Steps\" FROM daily_activity WHERE day BETWEEN ($__timeFrom()::timestamptz AT TIME ZONE '$__timezone')::date AND ($__timeTo()::timestamptz AT TIME ZONE '$__timezone')::date ORDER BY day",
           "format": "time_series",
           "refId": "A"
         }
@@ -641,7 +641,7 @@
       "targets": [
         {
           "datasource": { "type": "grafana-postgresql-datasource", "uid": "oura-pg" },
-          "rawSql": "SELECT NULLIF(spo2_percentage_average, 0) as \"SpO2 %\" FROM daily_spo2 WHERE spo2_percentage_average > 0 AND day <= ($__timeTo()::timestamptz)::date ORDER BY day DESC LIMIT 1",
+          "rawSql": "SELECT NULLIF(spo2_percentage_average, 0) as \"SpO2 %\" FROM daily_spo2 WHERE spo2_percentage_average > 0 AND day <= ($__timeTo()::timestamptz AT TIME ZONE '$__timezone')::date ORDER BY day DESC LIMIT 1",
           "format": "table",
           "refId": "A"
         }
@@ -688,7 +688,7 @@
       "targets": [
         {
           "datasource": { "type": "grafana-postgresql-datasource", "uid": "oura-pg" },
-          "rawSql": "SELECT vascular_age FROM daily_cardiovascular_age WHERE day <= ($__timeTo()::timestamptz)::date ORDER BY day DESC LIMIT 1",
+          "rawSql": "SELECT vascular_age FROM daily_cardiovascular_age WHERE day <= ($__timeTo()::timestamptz AT TIME ZONE '$__timezone')::date ORDER BY day DESC LIMIT 1",
           "format": "table",
           "refId": "A"
         }
@@ -736,7 +736,7 @@
       "targets": [
         {
           "datasource": { "type": "grafana-postgresql-datasource", "uid": "oura-pg" },
-          "rawSql": "SELECT day as time, NULLIF(spo2_percentage_average, 0) as \"SpO2 %\" FROM daily_spo2 WHERE $__timeFilter(day) ORDER BY day",
+          "rawSql": "SELECT (day::timestamp AT TIME ZONE '$__timezone') AS time, NULLIF(spo2_percentage_average, 0) as \"SpO2 %\" FROM daily_spo2 WHERE day BETWEEN ($__timeFrom()::timestamptz AT TIME ZONE '$__timezone')::date AND ($__timeTo()::timestamptz AT TIME ZONE '$__timezone')::date ORDER BY day",
           "format": "time_series",
           "refId": "A"
         }
@@ -802,7 +802,7 @@
       "targets": [
         {
           "datasource": { "type": "grafana-postgresql-datasource", "uid": "oura-pg" },
-          "rawSql": "SELECT endpoint, last_sync_date, last_success_at, consecutive_failures, CASE WHEN consecutive_failures = 0 AND last_success_at IS NOT NULL AND now() - last_success_at < interval '2 hours' THEN 1 ELSE 0 END AS fresh FROM sync_log ORDER BY endpoint",
+          "rawSql": "SELECT endpoint, last_sync_date::text AS last_sync_date, last_success_at, consecutive_failures, CASE WHEN consecutive_failures = 0 AND last_success_at IS NOT NULL AND now() - last_success_at < interval '2 hours' THEN 1 ELSE 0 END AS fresh FROM sync_log ORDER BY endpoint",
           "format": "table",
           "refId": "A"
         }
@@ -868,7 +868,7 @@
       "targets": [
         {
           "datasource": { "type": "grafana-postgresql-datasource", "uid": "oura-pg" },
-          "rawSql": "SELECT dr.day AS time, sp.average_hrv AS \"HRV (ms)\", dr.score AS \"Readiness Score\" FROM daily_readiness dr JOIN sleep_primary sp ON sp.day = dr.day - 1 WHERE $__timeFilter(dr.day) ORDER BY dr.day",
+          "rawSql": "SELECT (dr.day::timestamp AT TIME ZONE '$__timezone') AS time, sp.average_hrv AS \"HRV (ms)\", dr.score AS \"Readiness Score\" FROM daily_readiness dr JOIN sleep_primary sp ON sp.day = dr.day - 1 WHERE dr.day BETWEEN ($__timeFrom()::timestamptz AT TIME ZONE '$__timezone')::date AND ($__timeTo()::timestamptz AT TIME ZONE '$__timezone')::date ORDER BY dr.day",
           "format": "table",
           "refId": "A"
         }
@@ -959,7 +959,7 @@
       "targets": [
         {
           "datasource": { "type": "grafana-postgresql-datasource", "uid": "oura-pg" },
-          "rawSql": "SELECT date_trunc('week', day::timestamp) AS time, AVG(score)::int AS \"Avg Sleep Score\" FROM daily_sleep WHERE $__timeFilter(day) GROUP BY 1 ORDER BY 1",
+          "rawSql": "SELECT (date_trunc('week', day::timestamp) AT TIME ZONE '$__timezone') AS time, AVG(score)::int AS \"Avg Sleep Score\" FROM daily_sleep WHERE day BETWEEN ($__timeFrom()::timestamptz AT TIME ZONE '$__timezone')::date AND ($__timeTo()::timestamptz AT TIME ZONE '$__timezone')::date GROUP BY 1 ORDER BY 1",
           "format": "table",
           "refId": "A"
         }
@@ -1026,7 +1026,7 @@
       "targets": [
         {
           "datasource": { "type": "grafana-postgresql-datasource", "uid": "oura-pg" },
-          "rawSql": "SELECT date_trunc('week', day::timestamp) AS time, AVG(score)::int AS \"Avg Readiness\" FROM daily_readiness WHERE $__timeFilter(day) GROUP BY 1 ORDER BY 1",
+          "rawSql": "SELECT (date_trunc('week', day::timestamp) AT TIME ZONE '$__timezone') AS time, AVG(score)::int AS \"Avg Readiness\" FROM daily_readiness WHERE day BETWEEN ($__timeFrom()::timestamptz AT TIME ZONE '$__timezone')::date AND ($__timeTo()::timestamptz AT TIME ZONE '$__timezone')::date GROUP BY 1 ORDER BY 1",
           "format": "table",
           "refId": "A"
         }
@@ -1093,7 +1093,7 @@
       "targets": [
         {
           "datasource": { "type": "grafana-postgresql-datasource", "uid": "oura-pg" },
-          "rawSql": "SELECT date_trunc('week', day::timestamp) AS time, AVG(steps)::int AS \"Avg Steps\" FROM daily_activity WHERE $__timeFilter(day) GROUP BY 1 ORDER BY 1",
+          "rawSql": "SELECT (date_trunc('week', day::timestamp) AT TIME ZONE '$__timezone') AS time, AVG(steps)::int AS \"Avg Steps\" FROM daily_activity WHERE day BETWEEN ($__timeFrom()::timestamptz AT TIME ZONE '$__timezone')::date AND ($__timeTo()::timestamptz AT TIME ZONE '$__timezone')::date GROUP BY 1 ORDER BY 1",
           "format": "table",
           "refId": "A"
         }
@@ -1160,7 +1160,7 @@
       "targets": [
         {
           "datasource": { "type": "grafana-postgresql-datasource", "uid": "oura-pg" },
-          "rawSql": "SELECT date_trunc('week', day::timestamp) AS time, AVG(average_hrv)::numeric(5,1) AS \"Avg HRV\" FROM sleep_primary WHERE $__timeFilter(day) GROUP BY 1 ORDER BY 1",
+          "rawSql": "SELECT (date_trunc('week', day::timestamp) AT TIME ZONE '$__timezone') AS time, AVG(average_hrv)::numeric(5,1) AS \"Avg HRV\" FROM sleep_primary WHERE day BETWEEN ($__timeFrom()::timestamptz AT TIME ZONE '$__timezone')::date AND ($__timeTo()::timestamptz AT TIME ZONE '$__timezone')::date GROUP BY 1 ORDER BY 1",
           "format": "table",
           "refId": "A"
         }
