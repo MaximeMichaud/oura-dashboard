@@ -51,12 +51,12 @@ class PostgresProvider:
     def scores_trend(_self, start: date, end: date) -> pd.DataFrame:
         return query_df(
             """
-            SELECT a.day, s.score AS sleep_score, r.score AS readiness_score, a.steps
-            FROM daily_activity a
-            LEFT JOIN daily_sleep s ON s.day = a.day
-            LEFT JOIN daily_readiness r ON r.day = a.day
-            WHERE a.day >= :start AND a.day <= :end
-            ORDER BY a.day
+            SELECT day, s.score AS sleep_score, r.score AS readiness_score, a.steps
+            FROM daily_sleep s
+            FULL OUTER JOIN daily_readiness r USING (day)
+            FULL OUTER JOIN daily_activity a USING (day)
+            WHERE day >= :start AND day <= :end
+            ORDER BY day
         """,
             {"start": start, "end": end},
         )

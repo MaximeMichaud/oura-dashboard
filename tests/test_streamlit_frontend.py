@@ -1,12 +1,16 @@
+import os
 from datetime import date, datetime, timedelta, timezone
 from unittest.mock import Mock
 
+import pandas as pd
 import pytest
 import requests
 from components.sidebar import _today_in_timezone
 from data import providers
 from data.api_provider import ApiProvider
 from data.oauth import OAuthToken
+from data.postgres_provider import PostgresProvider
+from sqlalchemy import create_engine, text
 
 
 class _FakeSidebar:
@@ -199,6 +203,43 @@ def test_today_uses_selected_timezone():
 
     assert _today_in_timezone("America/Toronto", instant) == date(2026, 7, 8)
     assert _today_in_timezone("Asia/Tokyo", instant) == date(2026, 7, 9)
+
+
+@pytest.fixture
+def frontend_pg_connection(monkeypatch):
+    """Execute provider queries against transaction-local synthetic tables."""
+    url = os.environ.get("TEST_DATABASE_URL")
+    if not url:
+        pytest.skip("TEST_DATABASE_URL is required for PostgreSQL provider tests")
+    engine = create_engine(url)
+    try:
+        with engine.connect() as connection, connection.begin():
+            monkeypatch.setattr(
+                "data.postgres_provider.query_df",
+                lambda sql, params=None: pd.read_sql(text(sql), connection, params=params),
+            )
+            yield connection
+    finally:
+        engine.dispose()
+
+
+def test_postgres_scores_preserve_days_without_activity(frontend_pg_connection):
+    conn = frontend_pg_connection
+    for table, metric in [("daily_sleep", "score"), ("daily_readiness", "score"), ("daily_activity", "steps")]:
+        conn.execute(text(f"CREATE TEMP TABLE {table} (day date PRIMARY KEY, {metric} int) ON COMMIT DROP"))
+    conn.execute(text("INSERT INTO daily_sleep VALUES ('2026-07-01', 81), ('2026-07-03', 83), ('2026-07-04', 99)"))
+    conn.execute(text("INSERT INTO daily_readiness VALUES ('2026-07-02', 82), ('2026-07-03', 84)"))
+    conn.execute(text("INSERT INTO daily_activity VALUES ('2026-07-03', 5000)"))
+
+    frame = PostgresProvider.scores_trend.__wrapped__(PostgresProvider(), date(2026, 7, 1), date(2026, 7, 3))
+
+    assert frame["day"].tolist() == [date(2026, 7, day) for day in range(1, 4)]
+    assert frame.iloc[0]["sleep_score"] == 81
+    assert pd.isna(frame.iloc[0]["steps"])
+    assert frame.iloc[1]["readiness_score"] == 82
+    assert frame.iloc[2]["sleep_score"] == 83
+    assert frame.iloc[2]["readiness_score"] == 84
+    assert frame.iloc[2]["steps"] == 5000
 
 
 def test_api_cache_expires_so_new_sync_data_becomes_visible(monkeypatch):
