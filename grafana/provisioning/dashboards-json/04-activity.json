@@ -1096,7 +1096,7 @@
             "type": "grafana-postgresql-datasource",
             "uid": "oura-pg"
           },
-          "rawSql": "SELECT day::text as \"Date\", initcap(replace(activity, '_', ' ')) as \"Activity\", initcap(intensity) as \"Intensity\", round(calories::numeric) as \"Calories\", round(extract(epoch from (end_datetime - start_datetime))/60.0) as \"Duration (min)\", to_char(start_datetime, 'HH24:MI') as \"Start\", to_char(end_datetime, 'HH24:MI') as \"End\", initcap(source) as \"Source\" FROM workout WHERE day BETWEEN ($__timeFrom()::timestamptz AT TIME ZONE '$__timezone')::date AND ($__timeTo()::timestamptz AT TIME ZONE '$__timezone')::date ORDER BY day DESC, start_datetime DESC",
+          "rawSql": "SELECT day::text as \"Date\", initcap(replace(activity, '_', ' ')) as \"Activity\", initcap(intensity) as \"Intensity\", round(calories::numeric) as \"Calories\", round(extract(epoch from (end_datetime - start_datetime))/60.0) as \"Duration (min)\", to_char(start_datetime AT TIME ZONE '$__timezone', 'HH24:MI') as \"Start\", to_char(end_datetime AT TIME ZONE '$__timezone', 'HH24:MI') as \"End\", initcap(source) as \"Source\" FROM workout WHERE day BETWEEN ($__timeFrom()::timestamptz AT TIME ZONE '$__timezone')::date AND ($__timeTo()::timestamptz AT TIME ZONE '$__timezone')::date ORDER BY day DESC, start_datetime DESC",
           "format": "table"
         }
       ],

@@ -1,7 +1,7 @@
 import json
 import os
 import re
-from datetime import datetime, time, timezone
+from datetime import date, datetime, time, timedelta, timezone
 from zoneinfo import ZoneInfo
 
 import pytest
@@ -263,4 +263,241 @@ def test_night_selector_uses_the_dashboard_timezone(dashboard_connection, loaded
     sql = interpolate_dashboard_sql(variables["night"], "2026-10-01", "2026-10-02", display_timezone)
     assert dashboard_connection.exec_driver_sql(sql).scalars().all() == ["2026-10-02", "2026-10-01"]
     shift_sql = interpolate_dashboard_sql(variables["night_shift"], "2026-10-01", "2026-10-02", display_timezone)
-    assert dashboard_connection.exec_driver_sql(shift_sql.replace("$night", "2026-10-01")).scalar_one() == "1d"
+    # Helper ${__to} is time.max on the end day: 23:59:59.999999 local, same civil day as the
+    # next midnight, so the shift is the clock only. Grafana parseDateMath keeps each token.
+    assert dashboard_connection.exec_driver_sql(shift_sql.replace("$night", "2026-10-01")).scalar_one() == "23h-59m-59s"
+
+
+def _local_date(value, display_timezone):
+    if value.tzinfo is None:
+        value = value.replace(tzinfo=timezone.utc)
+    return value.astimezone(ZoneInfo(display_timezone)).date()
+
+
+def test_nap_panel_counts_confirmed_naps_not_rejected_rest(dashboard_connection, loaded_dashboards):
+    dashboard_connection.exec_driver_sql("CREATE TEMP TABLE sleep (day date, type text) ON COMMIT DROP")
+    dashboard_connection.exec_driver_sql(
+        "INSERT INTO sleep VALUES "
+        "('2026-10-01', 'sleep'), ('2026-10-01', 'long_sleep'), ('2026-10-02', 'rest'), "
+        "('2026-10-02', 'late_nap'), ('2026-10-02', 'deleted')"
+    )
+    sql = dashboard_sql(loaded_dashboards, "oura-sleep", 20, "2026-10-01", "2026-10-02", "America/Toronto")
+    rows = dashboard_connection.exec_driver_sql(sql).all()
+
+    assert sorted(_local_date(row[0], "America/Toronto") for row in rows) == [date(2026, 10, 1), date(2026, 10, 2)]
+    assert sorted(int(row[1]) for row in rows) == [1, 1]
+
+
+def test_daily_heart_rate_uses_the_dashboard_timezone(dashboard_connection, loaded_dashboards):
+    dashboard_connection.exec_driver_sql("SET LOCAL TIME ZONE 'UTC'")
+    dashboard_connection.exec_driver_sql(
+        "CREATE TEMP TABLE heartrate (timestamp timestamptz, bpm integer) ON COMMIT DROP"
+    )
+    dashboard_connection.exec_driver_sql(
+        "INSERT INTO heartrate VALUES ('2026-11-13 17:00:00+00', 80), ('2026-11-14 02:00:00+00', 40)"
+    )
+    sql = dashboard_sql(loaded_dashboards, "oura-heart-rate", 7, "2026-11-13", "2026-11-13", "America/Toronto")
+    rows = dashboard_connection.exec_driver_sql(sql).all()
+
+    assert len(rows) == 1
+    assert _local_date(rows[0][0], "America/Toronto") == date(2026, 11, 13)
+    assert rows[0][1] == 40
+    assert rows[0][3] == 80
+
+
+def test_workout_clock_uses_the_dashboard_timezone(dashboard_connection, loaded_dashboards):
+    dashboard_connection.exec_driver_sql("SET LOCAL TIME ZONE 'UTC'")
+    dashboard_connection.exec_driver_sql(
+        "CREATE TEMP TABLE workout ("
+        "day date, activity text, intensity text, calories numeric, "
+        "start_datetime timestamptz, end_datetime timestamptz, source text"
+        ") ON COMMIT DROP"
+    )
+    dashboard_connection.exec_driver_sql(
+        "INSERT INTO workout VALUES ("
+        "'2026-10-01', 'running', 'moderate', 100, "
+        "'2026-10-01 22:00:00+00', '2026-10-01 22:30:00+00', 'manual')"
+    )
+    sql = dashboard_sql(loaded_dashboards, "oura-activity", 15, "2026-10-01", "2026-10-01", "America/Toronto")
+    row = dashboard_connection.exec_driver_sql(sql).one()
+
+    assert row[5] == "18:00"
+    assert row[6] == "18:30"
+
+
+def test_open_rest_mode_days_use_the_dashboard_timezone(dashboard_connection, loaded_dashboards):
+    dashboard_connection.exec_driver_sql("SET LOCAL TIME ZONE 'Pacific/Kiritimati'")
+    now = dashboard_connection.exec_driver_sql("SELECT CURRENT_TIMESTAMP").scalar_one()
+    local_day = now.astimezone(ZoneInfo("Pacific/Pago_Pago")).date()
+    session_day = now.astimezone(ZoneInfo("Pacific/Kiritimati")).date()
+    assert session_day != local_day
+    dashboard_connection.exec_driver_sql(
+        "CREATE TEMP TABLE rest_mode_period ("
+        "start_day date, end_day date, start_time timestamptz, end_time timestamptz, episodes jsonb"
+        ") ON COMMIT DROP"
+    )
+    dashboard_connection.exec_driver_sql(
+        "INSERT INTO rest_mode_period (start_day) VALUES (%s)",
+        (local_day,),
+    )
+    day = local_day.isoformat()
+    sql = dashboard_sql(loaded_dashboards, "oura-context", 7, day, day, "Pacific/Pago_Pago")
+    row = dashboard_connection.exec_driver_sql(sql).one()
+
+    assert int(row[2]) == 1
+
+
+def test_tag_labels_are_plain_names(dashboard_connection, loaded_dashboards):
+    dashboard_connection.exec_driver_sql(
+        "CREATE TEMP TABLE tag (timestamp timestamptz, day date, tags jsonb, text text) ON COMMIT DROP"
+    )
+    dashboard_connection.exec_driver_sql(
+        "CREATE TEMP TABLE enhanced_tag ("
+        "start_time timestamptz, start_day date, end_day date, custom_name text, tag_type_code text, comment text"
+        ") ON COMMIT DROP"
+    )
+    dashboard_connection.exec_driver_sql(
+        "INSERT INTO tag VALUES ('2026-10-01 15:00:00+00', '2026-10-01', '[\"caffeine\", \"alcohol\"]', 'after lunch')"
+    )
+    sql = dashboard_sql(loaded_dashboards, "oura-context", 6, "2026-10-01", "2026-10-01", "America/Toronto")
+    row = dashboard_connection.exec_driver_sql(sql).one()
+
+    assert row[2] == "caffeine, alcohol"
+
+
+def test_enhanced_tag_duration_overlaps_the_selected_days(dashboard_connection, loaded_dashboards):
+    """A tag with an end day stays visible on every day it covers.
+
+    end_day is the last day of a duration. NULL means the tag has no duration,
+    so only its start day counts. An open rest-mode period is a different rule.
+    """
+    dashboard_connection.exec_driver_sql(
+        "CREATE TEMP TABLE tag (timestamp timestamptz, day date, tags jsonb, text text) ON COMMIT DROP"
+    )
+    dashboard_connection.exec_driver_sql(
+        "CREATE TEMP TABLE enhanced_tag ("
+        "start_time timestamptz, start_day date, end_day date, "
+        "custom_name text, tag_type_code text, comment text"
+        ") ON COMMIT DROP"
+    )
+    dashboard_connection.exec_driver_sql(
+        "INSERT INTO enhanced_tag "
+        "(start_time, start_day, end_day, custom_name, tag_type_code, comment) VALUES "
+        "('2026-09-28 12:00+00', '2026-09-28', '2026-10-02', 'illness', NULL, NULL), "
+        "('2026-09-01 12:00+00', '2026-09-01', '2026-09-15', 'travel', NULL, NULL), "
+        "('2026-10-01 12:00+00', '2026-10-01', NULL, 'caffeine', NULL, NULL), "
+        "('2026-09-30 12:00+00', '2026-09-30', NULL, NULL, 'alcohol', NULL), "
+        "('2026-10-02 12:00+00', '2026-10-02', '2026-10-05', 'sauna', NULL, NULL), "
+        "('2026-10-03 12:00+00', '2026-10-03', '2026-10-04', 'late', NULL, NULL)"
+    )
+    listed = dashboard_sql(loaded_dashboards, "oura-context", 6, "2026-10-01", "2026-10-02", "America/Toronto")
+    labels = {row[2] for row in dashboard_connection.exec_driver_sql(listed).all()}
+    assert labels == {"illness", "caffeine", "sauna"}
+    counted = dashboard_sql(loaded_dashboards, "oura-context", 2, "2026-10-01", "2026-10-02", "America/Toronto")
+    assert int(dashboard_connection.exec_driver_sql(counted).scalar_one()) == 3
+
+
+# Grafana 13.2.4 moment subtracts h/m/s as absolute milliseconds and d as a calendar day.
+# A calendar day across a DST change does not land on the next local midnight. parseDateMath
+# also rejects any token longer than 5 digits, so hours past 99999 are a second h token.
+_ABSOLUTE_SHIFT = re.compile(
+    r"(?:\d{1,5}h)(?:-\d{1,5}h)*(?:-\d{1,5}m)?(?:-\d{1,5}s)?"
+    r"|\d{1,5}m(?:-\d{1,5}s)?"
+    r"|\d{1,5}s"
+)
+_SHIFT_SECONDS = {"h": 3600, "m": 60, "s": 1}
+
+
+def _grafana_shift(value: str) -> timedelta:
+    text = str(value)
+    assert _ABSOLUTE_SHIFT.fullmatch(text), text
+    total = 0
+    for amount, unit in re.findall(r"(\d{1,5})([hms])", text):
+        total += int(amount) * _SHIFT_SECONDS[unit]
+    return timedelta(seconds=total)
+
+
+def _apply_absolute_shift(clock: datetime, shift: timedelta) -> datetime:
+    """Subtract h/m/s the way Grafana moment does: absolute milliseconds, not civil days."""
+    return datetime.fromtimestamp(clock.timestamp() - shift.total_seconds(), clock.tzinfo)
+
+
+def _sleep_phase_window(loaded_dashboards, dashboard_to: datetime, night: date, display_timezone: str):
+    dashboard = next(item for item in loaded_dashboards if item["uid"] == "oura-sleep")
+    panel = next(item for item in dashboard["panels"] if item["id"] == 9)
+    variable = next(item for item in dashboard["templating"]["list"] if item["name"] == "night_shift")
+    assert panel["timeFrom"] == "2d"
+    assert panel["timeShift"] == "$night_shift"
+    sql = variable["query"].replace("${__to}", str(int(dashboard_to.timestamp() * 1000)))
+    sql = sql.replace("$__timezone", display_timezone).replace("$night", night.isoformat())
+    return sql
+
+
+def test_sleep_phase_window_covers_bedtime_and_late_wake(dashboard_connection, loaded_dashboards):
+    """The phase timeline must end at the next local midnight, including across DST.
+
+    Grafana subtracts h/m/s as absolute milliseconds. A calendar day does not.
+    """
+    dashboard_connection.exec_driver_sql("SET LOCAL TIME ZONE 'Pacific/Kiritimati'")
+    zone = ZoneInfo("America/Toronto")
+    bedtime = datetime(2026, 10, 31, 18, 0, tzinfo=zone)
+    wake = datetime(2026, 11, 1, 12, 0, tzinfo=zone)
+    cases = (
+        (
+            datetime(2026, 11, 13, 7, 30, tzinfo=zone),
+            date(2026, 11, 1),
+            "271h-30m",
+            datetime(2026, 11, 2, 0, 0, tzinfo=zone),
+        ),
+        (
+            datetime(2026, 11, 13, 22, 15, tzinfo=zone),
+            date(2026, 11, 1),
+            "286h-15m",
+            datetime(2026, 11, 2, 0, 0, tzinfo=zone),
+        ),
+        (
+            datetime(2026, 3, 9, 7, 30, tzinfo=zone),
+            date(2026, 3, 7),
+            "30h-30m",
+            datetime(2026, 3, 8, 0, 0, tzinfo=zone),
+        ),
+        (
+            datetime(2026, 3, 8, 10, 0, tzinfo=zone),
+            date(2026, 3, 7),
+            "9h",
+            datetime(2026, 3, 8, 0, 0, tzinfo=zone),
+        ),
+        (
+            datetime(2026, 11, 2, 7, 30, tzinfo=zone),
+            date(2026, 10, 31),
+            "32h-30m",
+            datetime(2026, 11, 1, 0, 0, tzinfo=zone),
+        ),
+        (
+            datetime(2026, 11, 13, 7, 30, tzinfo=zone),
+            date(2015, 6, 16),
+            "99999h-17h-30m",
+            datetime(2015, 6, 17, 0, 0, tzinfo=zone),
+        ),
+    )
+    for clock, night, expected, next_midnight in cases:
+        sql = _sleep_phase_window(loaded_dashboards, clock, night, "America/Toronto")
+        raw_shift = dashboard_connection.exec_driver_sql(sql).scalar_one()
+        assert raw_shift == expected
+        window_end = _apply_absolute_shift(clock, _grafana_shift(raw_shift))
+        assert window_end == next_midnight
+        if night == date(2026, 11, 1):
+            window_start = datetime.fromtimestamp(window_end.timestamp() - 2 * 86400, zone)
+            assert window_start <= bedtime
+            assert wake <= window_end
+
+    this_morning = datetime(2026, 11, 13, 7, 30, tzinfo=zone)
+    sql = _sleep_phase_window(loaded_dashboards, this_morning, this_morning.date(), "America/Toronto")
+    raw_shift = dashboard_connection.exec_driver_sql(sql).scalar_one()
+    assert raw_shift == "0s"
+    shift = _grafana_shift(raw_shift)
+    assert shift == timedelta(0)
+    window_end = _apply_absolute_shift(this_morning, shift)
+    window_start = datetime.fromtimestamp(window_end.timestamp() - 2 * 86400, zone)
+    assert window_start <= datetime(2026, 11, 12, 22, 0, tzinfo=zone)
+    assert datetime(2026, 11, 13, 7, 0, tzinfo=zone) <= window_end

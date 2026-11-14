@@ -336,6 +336,13 @@ jobs:
       - name: Validate every Grafana dashboard and panel
         run: node scripts/validate-dashboards.mjs
 
+      - name: Validate historical sleep windows across DST changes
+        run: |
+          docker compose exec -T postgres \
+            sh -c 'psql -v ON_ERROR_STOP=1 -U "$POSTGRES_USER" -d "$POSTGRES_DB"' \
+            < tests/fixtures/sleep-window.sql
+          node scripts/validate-sleep-window.mjs
+
       - name: Upload browser artifacts on failure
         if: failure()
         uses: actions/upload-artifact@v7
@@ -344,6 +351,7 @@ jobs:
           path: |
             /tmp/streamlit
             /tmp/panels
+            /tmp/sleep-window
           if-no-files-found: ignore
           retention-days: 7
 

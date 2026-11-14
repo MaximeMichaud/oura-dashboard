@@ -50,7 +50,7 @@
     {
       "id": 7, "title": "Daily Heart Rate Range", "type": "timeseries", "gridPos": {"x": 0, "y": 13, "w": 24, "h": 8},
       "datasource": {"type": "grafana-postgresql-datasource", "uid": "oura-pg"},
-      "targets": [{"refId": "A", "format": "time_series", "rawSql": "SELECT timestamp::date AS time, MIN(bpm) AS minimum, AVG(bpm)::numeric(5,1) AS average, MAX(bpm) AS maximum FROM heartrate WHERE $__timeFilter(timestamp) GROUP BY 1 ORDER BY 1"}],
+      "targets": [{"refId": "A", "format": "time_series", "rawSql": "SELECT ((timestamp AT TIME ZONE '$__timezone')::date::timestamp AT TIME ZONE '$__timezone') AS time, MIN(bpm) AS minimum, AVG(bpm)::numeric(5,1) AS average, MAX(bpm) AS maximum FROM heartrate WHERE $__timeFilter(timestamp) GROUP BY 1 ORDER BY 1"}],
       "fieldConfig": {"defaults": {"unit": "bpm", "custom": {"drawStyle": "line", "lineWidth": 2, "showPoints": "auto"}}, "overrides": []},
       "options": {"legend": {"displayMode": "table", "placement": "bottom"}, "tooltip": {"mode": "multi"}}
     }

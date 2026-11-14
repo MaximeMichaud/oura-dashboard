@@ -11,7 +11,7 @@
     {
       "id": 2, "title": "Tags", "type": "stat", "gridPos": {"x": 8, "y": 0, "w": 8, "h": 4},
       "datasource": {"type": "grafana-postgresql-datasource", "uid": "oura-pg"},
-      "targets": [{"refId": "A", "format": "table", "rawSql": "SELECT (SELECT COUNT(*) FROM tag WHERE day BETWEEN ($__timeFrom()::timestamptz AT TIME ZONE '$__timezone')::date AND ($__timeTo()::timestamptz AT TIME ZONE '$__timezone')::date) + (SELECT COUNT(*) FROM enhanced_tag WHERE start_day BETWEEN ($__timeFrom()::timestamptz AT TIME ZONE '$__timezone')::date AND ($__timeTo()::timestamptz AT TIME ZONE '$__timezone')::date) AS tags"}],
+      "targets": [{"refId": "A", "format": "table", "rawSql": "SELECT (SELECT COUNT(*) FROM tag WHERE day BETWEEN ($__timeFrom()::timestamptz AT TIME ZONE '$__timezone')::date AND ($__timeTo()::timestamptz AT TIME ZONE '$__timezone')::date) + (SELECT COUNT(*) FROM enhanced_tag WHERE start_day <= ($__timeTo()::timestamptz AT TIME ZONE '$__timezone')::date AND COALESCE(end_day, start_day) >= ($__timeFrom()::timestamptz AT TIME ZONE '$__timezone')::date) AS tags"}],
       "fieldConfig": {"defaults": {"color": {"mode": "fixed", "fixedColor": "purple"}}, "overrides": []}, "options": {"colorMode": "value", "graphMode": "none", "reduceOptions": {"calcs": ["lastNotNull"]}}
     },
     {
@@ -35,13 +35,13 @@
     {
       "id": 6, "title": "Tags and Notes", "type": "table", "gridPos": {"x": 0, "y": 12, "w": 12, "h": 9},
       "datasource": {"type": "grafana-postgresql-datasource", "uid": "oura-pg"},
-      "targets": [{"refId": "A", "format": "table", "rawSql": "SELECT timestamp AS \"Time\", 'Tag' AS \"Format\", COALESCE(tags::text, text) AS \"Label\", text AS \"Comment\" FROM tag WHERE day BETWEEN ($__timeFrom()::timestamptz AT TIME ZONE '$__timezone')::date AND ($__timeTo()::timestamptz AT TIME ZONE '$__timezone')::date UNION ALL SELECT start_time, 'Enhanced', COALESCE(custom_name, tag_type_code), comment FROM enhanced_tag WHERE start_day BETWEEN ($__timeFrom()::timestamptz AT TIME ZONE '$__timezone')::date AND ($__timeTo()::timestamptz AT TIME ZONE '$__timezone')::date ORDER BY \"Time\" DESC"}],
+      "targets": [{"refId": "A", "format": "table", "rawSql": "SELECT timestamp AS \"Time\", 'Tag' AS \"Format\", COALESCE(NULLIF((SELECT string_agg(value, ', ' ORDER BY ordinality) FROM jsonb_array_elements_text(tags) WITH ORDINALITY AS item(value, ordinality)), ''), text) AS \"Label\", text AS \"Comment\" FROM tag WHERE day BETWEEN ($__timeFrom()::timestamptz AT TIME ZONE '$__timezone')::date AND ($__timeTo()::timestamptz AT TIME ZONE '$__timezone')::date UNION ALL SELECT start_time, 'Enhanced', COALESCE(custom_name, tag_type_code), comment FROM enhanced_tag WHERE start_day <= ($__timeTo()::timestamptz AT TIME ZONE '$__timezone')::date AND COALESCE(end_day, start_day) >= ($__timeFrom()::timestamptz AT TIME ZONE '$__timezone')::date ORDER BY \"Time\" DESC"}],
       "fieldConfig": {"defaults": {"custom": {"align": "auto"}}, "overrides": []}, "options": {"showHeader": true, "cellHeight": "sm"}
     },
     {
       "id": 7, "title": "Rest Mode History", "type": "table", "gridPos": {"x": 12, "y": 12, "w": 12, "h": 9},
       "datasource": {"type": "grafana-postgresql-datasource", "uid": "oura-pg"},
-      "targets": [{"refId": "A", "format": "table", "rawSql": "SELECT start_day::text AS \"Start\", end_day::text AS \"End\", COALESCE(end_day, CURRENT_DATE) - start_day + 1 AS \"Days\", jsonb_array_length(COALESCE(episodes, '[]'::jsonb)) AS \"Episodes\" FROM rest_mode_period WHERE start_day <= ($__timeTo()::timestamptz AT TIME ZONE '$__timezone')::date AND COALESCE(end_day, ($__timeTo()::timestamptz AT TIME ZONE '$__timezone')::date) >= ($__timeFrom()::timestamptz AT TIME ZONE '$__timezone')::date ORDER BY start_day DESC"}],
+      "targets": [{"refId": "A", "format": "table", "rawSql": "SELECT start_day::text AS \"Start\", end_day::text AS \"End\", COALESCE(end_day, (CURRENT_TIMESTAMP AT TIME ZONE '$__timezone')::date) - start_day + 1 AS \"Days\", jsonb_array_length(COALESCE(episodes, '[]'::jsonb)) AS \"Episodes\" FROM rest_mode_period WHERE start_day <= ($__timeTo()::timestamptz AT TIME ZONE '$__timezone')::date AND COALESCE(end_day, ($__timeTo()::timestamptz AT TIME ZONE '$__timezone')::date) >= ($__timeFrom()::timestamptz AT TIME ZONE '$__timezone')::date ORDER BY start_day DESC"}],
       "fieldConfig": {"defaults": {"custom": {"align": "auto"}}, "overrides": []}, "options": {"showHeader": true, "cellHeight": "sm"}
     }
   ],

@@ -1713,7 +1713,7 @@
             "type": "grafana-postgresql-datasource",
             "uid": "oura-pg"
           },
-          "rawSql": "SELECT (day::timestamp AT TIME ZONE '$__timezone') AS time, count(*) as \"Naps\" FROM sleep WHERE type IN ('late_nap', 'rest') AND day BETWEEN ($__timeFrom()::timestamptz AT TIME ZONE '$__timezone')::date AND ($__timeTo()::timestamptz AT TIME ZONE '$__timezone')::date GROUP BY day ORDER BY day",
+          "rawSql": "SELECT (day::timestamp AT TIME ZONE '$__timezone') AS time, count(*) as \"Naps\" FROM sleep WHERE type IN ('late_nap', 'sleep') AND day BETWEEN ($__timeFrom()::timestamptz AT TIME ZONE '$__timezone')::date AND ($__timeTo()::timestamptz AT TIME ZONE '$__timezone')::date GROUP BY day ORDER BY day",
           "format": "time_series",
           "refId": "A"
         }
@@ -1772,7 +1772,7 @@
           "type": "grafana-postgresql-datasource",
           "uid": "oura-pg"
         },
-        "query": "SELECT ((to_timestamp(${__to} / 1000.0) AT TIME ZONE '$__timezone')::date - '$night'::date) || 'd'",
+        "query": "SELECT CASE WHEN secs <= 0 THEN '0s' ELSE concat_ws('-', (SELECT string_agg(piece::text || 'h', '-' ORDER BY ord) FROM (SELECT 99999 AS piece, g AS ord FROM generate_series(1, (hours / 99999)::int) AS g UNION ALL SELECT MOD(hours, 99999)::int, (hours / 99999)::int + 1 WHERE MOD(hours, 99999) > 0) chunks WHERE hours > 0), CASE WHEN mins > 0 THEN mins::text || 'm' END, CASE WHEN rem > 0 THEN rem::text || 's' END) END FROM (SELECT secs, (secs / 3600) AS hours, (MOD(secs, 3600) / 60) AS mins, MOD(secs, 60) AS rem FROM (SELECT GREATEST(0, FLOOR(EXTRACT(EPOCH FROM (to_timestamp(${__to} / 1000.0) - (('$night'::date + 1)::timestamp AT TIME ZONE '$__timezone')))))::bigint AS secs) gap) parts",
         "refresh": 2,
         "sort": 0,
         "includeAll": false,
