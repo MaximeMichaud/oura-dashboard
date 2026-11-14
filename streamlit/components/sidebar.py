@@ -4,6 +4,7 @@ import os
 from datetime import datetime, timedelta, timezone
 from zoneinfo import ZoneInfo, available_timezones
 
+import pandas as pd
 from data.providers import get_provider, show_provider_sidebar
 
 import streamlit as st
@@ -56,6 +57,19 @@ def _today_in_timezone(timezone_name: str, now: datetime | None = None):
     """Return the current calendar date in the requested timezone."""
     current = now or datetime.now(timezone.utc)
     return current.astimezone(ZoneInfo(timezone_name)).date()
+
+
+def local_calendar_days(values, timezone_name: str) -> pd.Series:
+    """Calendar day of each instant in the selected timezone. Missing stays missing."""
+    stamps = pd.to_datetime(pd.Series(values), utc=True, format="ISO8601")
+    zone = ZoneInfo(timezone_name)
+
+    def one_day(stamp):
+        if pd.isna(stamp):
+            return None
+        return stamp.tz_convert(zone).strftime("%Y-%m-%d")
+
+    return pd.Series([one_day(stamp) for stamp in stamps], index=stamps.index, dtype=object)
 
 
 def render_sidebar():

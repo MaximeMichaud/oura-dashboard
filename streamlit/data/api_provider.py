@@ -14,6 +14,37 @@ import requests
 
 import streamlit as st
 
+_HISTORY_START = date(2000, 1, 1)
+
+
+def _records_on_or_before(records, end: date, predicate=None) -> list[dict]:
+    """Keep rows whose day is on or before end. Day text is YYYY-MM-DD."""
+    end_iso = end.isoformat()
+    chosen = []
+    for row in records or []:
+        day = row.get("day")
+        if not isinstance(day, str) or day > end_iso:
+            continue
+        if predicate is not None and not predicate(row):
+            continue
+        chosen.append(row)
+    return chosen
+
+
+def _latest_record(records, end: date, predicate=None) -> dict | None:
+    chosen = _records_on_or_before(records, end, predicate)
+    if not chosen:
+        return None
+    return max(chosen, key=lambda row: row["day"])
+
+
+def _positive_spo2(row: dict) -> float | None:
+    spo2_pct = row.get("spo2_percentage")
+    average = spo2_pct.get("average") if isinstance(spo2_pct, dict) else None
+    if isinstance(average, (int, float)) and not isinstance(average, bool) and average > 0:
+        return average
+    return None
+
 
 class ApiProvider:
     """Fetches data directly from the Oura API v2."""
@@ -164,7 +195,6 @@ class ApiProvider:
     # Latest scores
     # ------------------------------------------------------------------
     def latest_scores(self, end_date: date) -> dict:
-        start = end_date - timedelta(days=7)
         result = {}
 
         for ep, field, out_key in [
@@ -173,47 +203,49 @@ class ApiProvider:
             ("daily_spo2", None, "spo2"),
             ("daily_cardiovascular_age", "vascular_age", "cardio_age"),
             ("daily_resilience", "level", "resilience_level"),
-            ("vO2_max", "vo2_max", "vo2_max"),
         ]:
             try:
-                data = self._fetch_cached(ep, start, end_date)
-                if data:
-                    last = data[-1]
-                    if ep == "daily_spo2":
-                        spo2_pct = last.get("spo2_percentage", {})
-                        result["spo2"] = spo2_pct.get("average") if isinstance(spo2_pct, dict) else None
-                    elif field:
-                        result[out_key] = last.get(field)
+                data = self._fetch_cached(ep, _HISTORY_START, end_date)
+                if ep == "daily_spo2":
+                    last = _latest_record(data, end_date, predicate=lambda row: _positive_spo2(row) is not None)
+                    result["spo2"] = _positive_spo2(last) if last else None
+                else:
+                    last = _latest_record(data, end_date)
+                    result[out_key] = last.get(field) if last else None
             except Exception:
                 result[out_key] = None
 
         # Activity
         try:
-            act = self._fetch_cached("daily_activity", start, end_date)
-            if act:
-                last = act[-1]
-                result["active_cal"] = last.get("active_calories")
-                result["steps"] = last.get("steps")
+            activity = _latest_record(self._fetch_cached("daily_activity", _HISTORY_START, end_date), end_date)
+            if activity:
+                result["active_cal"] = activity.get("active_calories")
+                result["steps"] = activity.get("steps")
         except Exception:
             pass
 
-        # Stress
+        # Stress summary ignores days that have no summary, matching the Postgres card.
         try:
-            stress = self._fetch_cached("daily_stress", start, end_date)
+            stress = _latest_record(
+                self._fetch_cached("daily_stress", _HISTORY_START, end_date),
+                end_date,
+                predicate=lambda row: bool(row.get("day_summary")),
+            )
             if stress:
-                for s in reversed(stress):
-                    ds = s.get("day_summary")
-                    if ds and ds != "":
-                        result["stress_summary"] = ds
-                        break
+                result["stress_summary"] = stress.get("day_summary")
         except Exception:
             pass
 
-        # VO2 max personal best
+        # VO2 max and its all-time best use the same history. A one-year window hides older bests.
         try:
-            vo2_all = self._fetch_cached("vO2_max", end_date - timedelta(days=365), end_date)
-            if vo2_all:
-                vo2_vals = [r.get("vo2_max") for r in vo2_all if r.get("vo2_max")]
+            vo2_rows = _records_on_or_before(self._fetch_cached("vO2_max", _HISTORY_START, end_date), end_date)
+            if vo2_rows:
+                result["vo2_max"] = max(vo2_rows, key=lambda row: row["day"]).get("vo2_max")
+                vo2_vals = [
+                    row["vo2_max"]
+                    for row in vo2_rows
+                    if isinstance(row.get("vo2_max"), (int, float)) and not isinstance(row.get("vo2_max"), bool)
+                ]
                 if vo2_vals:
                     result["vo2_max_pb"] = max(vo2_vals)
         except Exception:
@@ -275,10 +307,9 @@ class ApiProvider:
         return df
 
     def sleep_contributors_latest(self, end_date: date) -> pd.DataFrame:
-        data = self._fetch_cached("daily_sleep", end_date - timedelta(days=7), end_date)
-        if not data:
+        last = _latest_record(self._fetch_cached("daily_sleep", _HISTORY_START, end_date), end_date)
+        if not last:
             return pd.DataFrame()
-        last = data[-1]
         c = last.get("contributors", {})
         return pd.DataFrame(
             [
@@ -501,10 +532,9 @@ class ApiProvider:
         return df
 
     def optimal_bedtime(self, end_date: date) -> dict:
-        data = self._fetch_cached("sleep_time", end_date - timedelta(days=7), end_date)
-        if not data:
+        last = _latest_record(self._fetch_cached("sleep_time", _HISTORY_START, end_date), end_date)
+        if not last:
             return {}
-        last = data[-1]
         bt = last.get("optimal_bedtime", {}) or {}
         return {
             "optimal_bedtime_start": bt.get("start_offset"),
@@ -529,10 +559,9 @@ class ApiProvider:
     # Readiness page
     # ------------------------------------------------------------------
     def readiness_latest(self, end_date: date) -> dict:
-        data = self._fetch_cached("daily_readiness", end_date - timedelta(days=7), end_date)
-        if not data:
+        last = _latest_record(self._fetch_cached("daily_readiness", _HISTORY_START, end_date), end_date)
+        if not last:
             return {}
-        last = data[-1]
         c = last.get("contributors", {})
         return {
             "score": last.get("score"),
@@ -589,10 +618,9 @@ class ApiProvider:
     # Activity page
     # ------------------------------------------------------------------
     def activity_latest(self, end_date: date) -> dict:
-        data = self._fetch_cached("daily_activity", end_date - timedelta(days=7), end_date)
-        if not data:
+        last = _latest_record(self._fetch_cached("daily_activity", _HISTORY_START, end_date), end_date)
+        if not last:
             return {}
-        last = data[-1]
         c = last.get("contributors", {})
         return {
             "score": last.get("score"),
@@ -660,10 +688,9 @@ class ApiProvider:
     # Body page
     # ------------------------------------------------------------------
     def stress_latest(self, end_date: date) -> dict:
-        data = self._fetch_cached("daily_stress", end_date - timedelta(days=7), end_date)
-        if not data:
+        last = _latest_record(self._fetch_cached("daily_stress", _HISTORY_START, end_date), end_date)
+        if not last:
             return {}
-        last = data[-1]
         return {
             "day_summary": last.get("day_summary"),
             "stress_high": last.get("stress_high"),
@@ -687,10 +714,9 @@ class ApiProvider:
         return df
 
     def resilience_latest(self, end_date: date) -> dict:
-        data = self._fetch_cached("daily_resilience", end_date - timedelta(days=7), end_date)
-        if not data:
+        last = _latest_record(self._fetch_cached("daily_resilience", _HISTORY_START, end_date), end_date)
+        if not last:
             return {}
-        last = data[-1]
         c = last.get("contributors", {})
         return {
             "level": last.get("level"),
@@ -724,10 +750,9 @@ class ApiProvider:
         return df.sort_values("day")
 
     def spo2_latest(self, end_date: date) -> dict:
-        data = self._fetch_cached("daily_spo2", end_date - timedelta(days=7), end_date)
-        if not data:
+        last = _latest_record(self._fetch_cached("daily_spo2", _HISTORY_START, end_date), end_date)
+        if not last:
             return {}
-        last = data[-1]
         spo2_pct = last.get("spo2_percentage", {})
         return {
             "spo2": spo2_pct.get("average") if isinstance(spo2_pct, dict) else None,
@@ -771,7 +796,8 @@ class ApiProvider:
         df = self._heart_rate_frame(start, end)
         if df.empty:
             return pd.DataFrame(columns=["day", "minimum", "average", "maximum"])
-        df["day"] = df["timestamp"].dt.date
+        df = df.copy()
+        df["day"] = df["timestamp"].dt.tz_convert(self._user_timezone()).dt.date
         return df.groupby("day", as_index=False)["bpm"].agg(minimum="min", average="mean", maximum="max")
 
     def heart_rate_sources(self, start: date, end: date) -> pd.DataFrame:

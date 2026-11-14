@@ -11,7 +11,7 @@ import streamlit as st
 
 st.set_page_config(page_title="Oura - Ring", layout="wide", page_icon=":material/circle:")
 
-from components.sidebar import render_sidebar  # noqa: E402
+from components.sidebar import local_calendar_days, render_sidebar  # noqa: E402
 
 render_sidebar()
 st.title("Ring")
@@ -58,7 +58,8 @@ with left:
         if "hardware_type" in configs:
             configs["hardware_type"] = configs["hardware_type"].map(lambda value: hardware_labels.get(value, value))
         if "set_up_at" in configs:
-            configs["set_up_at"] = configs["set_up_at"].astype(str).str.slice(0, 10)
+            timezone_name = st.session_state.get("user_timezone", "UTC")
+            configs["set_up_at"] = local_calendar_days(configs["set_up_at"], timezone_name)
         configs = configs.rename(
             columns={
                 "color": "Color",

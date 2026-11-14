@@ -2,12 +2,31 @@
 
 from __future__ import annotations
 
+import os
 from datetime import date
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 import pandas as pd
 from components.db import get_engine, query_df
 
 import streamlit as st
+
+
+def _display_timezone() -> str:
+    """Sidebar timezone, then USER_TIMEZONE, then UTC. Invalid names fall back to UTC."""
+    raw = st.session_state.get("user_timezone") or os.environ.get("USER_TIMEZONE") or "UTC"
+    try:
+        ZoneInfo(str(raw))
+    except (ZoneInfoNotFoundError, TypeError, ValueError):
+        return "UTC"
+    return str(raw)
+
+
+# Civil dates from the UI are local midnights, not the database session date.
+_LOCAL_TIMESTAMP_RANGE = (
+    "timestamp >= (CAST(:start AS timestamp) AT TIME ZONE :tz) "
+    "AND timestamp < ((CAST(:end AS date) + INTERVAL '1 day') AT TIME ZONE :tz)"
+)
 
 
 class PostgresProvider:
@@ -534,50 +553,62 @@ class PostgresProvider:
     # ------------------------------------------------------------------
     # Extended API pages
     # ------------------------------------------------------------------
+    def heart_rate_summary(self, start: date, end: date) -> dict:
+        return self._heart_rate_summary(start, end, _display_timezone())
+
     @st.cache_data(ttl=300, show_spinner=False)
-    def heart_rate_summary(_self, start: date, end: date) -> dict:
+    def _heart_rate_summary(_self, start: date, end: date, display_timezone: str) -> dict:
         df = query_df(
-            """
+            f"""
             SELECT (array_agg(bpm ORDER BY timestamp DESC))[1] AS latest,
                    AVG(bpm)::numeric(5,1) AS average, MIN(bpm) AS minimum, MAX(bpm) AS maximum
-            FROM heartrate WHERE timestamp::date BETWEEN :start AND :end
+            FROM heartrate WHERE {_LOCAL_TIMESTAMP_RANGE}
             """,
-            {"start": start, "end": end},
+            {"start": start, "end": end, "tz": display_timezone},
         )
         return df.iloc[0].to_dict() if not df.empty else {}
 
+    def heart_rate_series(self, start: date, end: date) -> pd.DataFrame:
+        return self._heart_rate_series(start, end, _display_timezone())
+
     @st.cache_data(ttl=300, show_spinner=False)
-    def heart_rate_series(_self, start: date, end: date) -> pd.DataFrame:
+    def _heart_rate_series(_self, start: date, end: date, display_timezone: str) -> pd.DataFrame:
         return query_df(
-            """
+            f"""
             SELECT date_bin(interval '15 minutes', timestamp, TIMESTAMPTZ '2000-01-01') AS timestamp,
                    source, AVG(bpm)::numeric(5,1) AS bpm
-            FROM heartrate WHERE timestamp::date BETWEEN :start AND :end
+            FROM heartrate WHERE {_LOCAL_TIMESTAMP_RANGE}
             GROUP BY 1, 2 ORDER BY 1
             """,
-            {"start": start, "end": end},
+            {"start": start, "end": end, "tz": display_timezone},
         )
 
+    def heart_rate_daily(self, start: date, end: date) -> pd.DataFrame:
+        return self._heart_rate_daily(start, end, _display_timezone())
+
     @st.cache_data(ttl=300, show_spinner=False)
-    def heart_rate_daily(_self, start: date, end: date) -> pd.DataFrame:
+    def _heart_rate_daily(_self, start: date, end: date, display_timezone: str) -> pd.DataFrame:
         return query_df(
-            """
-            SELECT timestamp::date AS day, MIN(bpm) AS minimum,
+            f"""
+            SELECT (timestamp AT TIME ZONE :tz)::date AS day, MIN(bpm) AS minimum,
                    AVG(bpm)::numeric(5,1) AS average, MAX(bpm) AS maximum
-            FROM heartrate WHERE timestamp::date BETWEEN :start AND :end
+            FROM heartrate WHERE {_LOCAL_TIMESTAMP_RANGE}
             GROUP BY 1 ORDER BY 1
             """,
-            {"start": start, "end": end},
+            {"start": start, "end": end, "tz": display_timezone},
         )
 
+    def heart_rate_sources(self, start: date, end: date) -> pd.DataFrame:
+        return self._heart_rate_sources(start, end, _display_timezone())
+
     @st.cache_data(ttl=300, show_spinner=False)
-    def heart_rate_sources(_self, start: date, end: date) -> pd.DataFrame:
+    def _heart_rate_sources(_self, start: date, end: date, display_timezone: str) -> pd.DataFrame:
         return query_df(
-            """
+            f"""
             SELECT source, COUNT(*) AS count FROM heartrate
-            WHERE timestamp::date BETWEEN :start AND :end GROUP BY source
+            WHERE {_LOCAL_TIMESTAMP_RANGE} GROUP BY source
             """,
-            {"start": start, "end": end},
+            {"start": start, "end": end, "tz": display_timezone},
         )
 
     @st.cache_data(ttl=300, show_spinner=False)
@@ -596,11 +627,22 @@ class PostgresProvider:
         return query_df(
             """
             SELECT timestamp AS time, 'Tag' AS kind,
-                   COALESCE(tags::text, text) AS label, text AS comment
+                   COALESCE(
+                       NULLIF(
+                           (
+                               SELECT string_agg(value, ', ' ORDER BY ordinality)
+                               FROM jsonb_array_elements_text(tags) WITH ORDINALITY AS item(value, ordinality)
+                           ),
+                           ''
+                       ),
+                       text
+                   ) AS label,
+                   text AS comment
             FROM tag WHERE day BETWEEN :start AND :end
             UNION ALL
             SELECT start_time, 'Enhanced', COALESCE(custom_name, tag_type_code), comment
-            FROM enhanced_tag WHERE start_day BETWEEN :start AND :end
+            FROM enhanced_tag
+            WHERE start_day <= :end AND COALESCE(end_day, start_day) >= :start
             ORDER BY time DESC
             """,
             {"start": start, "end": end},
@@ -617,14 +659,17 @@ class PostgresProvider:
             {"start": start, "end": end},
         )
 
+    def battery_series(self, start: date, end: date) -> pd.DataFrame:
+        return self._battery_series(start, end, _display_timezone())
+
     @st.cache_data(ttl=300, show_spinner=False)
-    def battery_series(_self, start: date, end: date) -> pd.DataFrame:
+    def _battery_series(_self, start: date, end: date, display_timezone: str) -> pd.DataFrame:
         return query_df(
-            """
+            f"""
             SELECT timestamp, level, charging, in_charger FROM ring_battery_level
-            WHERE timestamp::date BETWEEN :start AND :end ORDER BY timestamp
+            WHERE {_LOCAL_TIMESTAMP_RANGE} ORDER BY timestamp
             """,
-            {"start": start, "end": end},
+            {"start": start, "end": end, "tz": display_timezone},
         )
 
     @st.cache_data(ttl=300, show_spinner=False)
@@ -641,21 +686,24 @@ class PostgresProvider:
         df = query_df("SELECT age, weight, height, biological_sex FROM personal_info LIMIT 1")
         return df.iloc[0].to_dict() if not df.empty else {}
 
+    def ring_summary(self, start: date, end: date) -> dict:
+        return self._ring_summary(start, end, _display_timezone())
+
     @st.cache_data(ttl=300, show_spinner=False)
-    def ring_summary(_self, start: date, end: date) -> dict:
+    def _ring_summary(_self, start: date, end: date, display_timezone: str) -> dict:
         df = query_df(
-            """
-            SELECT (SELECT level FROM ring_battery_level WHERE timestamp::date BETWEEN :start AND :end
+            f"""
+            SELECT (SELECT level FROM ring_battery_level WHERE {_LOCAL_TIMESTAMP_RANGE}
                     ORDER BY timestamp DESC LIMIT 1) AS latest_level,
                    (SELECT MIN(level) FROM ring_battery_level
-                    WHERE timestamp::date BETWEEN :start AND :end) AS minimum_level,
-                   (SELECT charging FROM ring_battery_level WHERE timestamp::date BETWEEN :start AND :end
+                    WHERE {_LOCAL_TIMESTAMP_RANGE}) AS minimum_level,
+                   (SELECT charging FROM ring_battery_level WHERE {_LOCAL_TIMESTAMP_RANGE}
                     ORDER BY timestamp DESC LIMIT 1) AS charging,
                    (SELECT hardware_type FROM ring_configuration
                     ORDER BY set_up_at DESC NULLS LAST LIMIT 1) AS hardware_type,
                    (SELECT firmware_version FROM ring_configuration
                     ORDER BY set_up_at DESC NULLS LAST LIMIT 1) AS firmware_version
             """,
-            {"start": start, "end": end},
+            {"start": start, "end": end, "tz": display_timezone},
         )
         return df.iloc[0].to_dict() if not df.empty else {}
